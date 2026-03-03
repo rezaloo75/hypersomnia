@@ -68,6 +68,7 @@ export async function getCloudGatewayBaseUrl(
   // Dedicated gateways: Public Edge DNS is derived from the control_plane_endpoint prefix.
   // e.g. "https://cf032d53cb.us.cp0.konghq.com" → "https://cf032d53cb.gateways.konggateway.com"
   if (kind === 'dedicated.v0') {
+    console.log('[dedicated.v0] full config:', JSON.stringify(config, null, 2))
     const prefix = extractCpPrefix(cpEndpoint)
     return prefix ? `https://${prefix}.gateways.konggateway.com` : null
   }
