@@ -15,6 +15,17 @@ import type { Folder, Request, Environment, Workspace } from '../../types'
 const REGIONS = Object.keys(REGION_LABELS) as KonnectRegion[]
 const KONNECT_WS_ID = 'konnect-workspace'
 
+/**
+ * Kong route paths can be regex patterns prefixed with `~`.
+ * Strip the prefix and remove `^` / `$` anchors to get a clean URL path.
+ * e.g. "~/breweries/random$" → "/breweries/random"
+ */
+function cleanPath(path: string): string {
+  let p = path.startsWith('~') ? path.slice(1) : path
+  p = p.replace(/^\^/, '').replace(/\$$/, '')
+  return p || '/'
+}
+
 interface SyncProgress {
   current: string
   done: number
@@ -33,7 +44,7 @@ interface Props {
 }
 
 export function KonnectModal({ onClose }: Props) {
-  const { importWorkspaceData } = useWorkspaceStore()
+  const { importWorkspaceData, setActiveEnvironment } = useWorkspaceStore()
 
   const [pat, setPat] = useState(() => storage.loadKonnectPat() ?? '')
   const [region, setRegion] = useState<KonnectRegion>(
@@ -162,9 +173,9 @@ export function KonnectModal({ onClose }: Props) {
 
           svcRoutes.forEach((route, ri) => {
             const method = (route.methods?.[0] ?? 'GET').toUpperCase()
-            const path = route.paths?.[0] ?? '/'
+            const path = cleanPath(route.paths?.[0] ?? '/')
             const name = route.name ?? `${method} ${path}`
-            const url = baseUrl ? `{{baseUrl}}${path}` : path
+            const url = `{{baseUrl}}${path}`
 
             requests.push({
               id: `konnect-route-${route.id}`,
@@ -188,6 +199,11 @@ export function KonnectModal({ onClose }: Props) {
       setProgress({ current: '', done: cps.length, total: cps.length })
 
       importWorkspaceData({ workspace, folders, requests, environments })
+
+      // Auto-select the first CP's environment so {{baseUrl}} resolves immediately
+      if (environments.length > 0) {
+        setActiveEnvironment(environments[0].id)
+      }
 
       const now = new Date().toISOString()
       storage.saveKonnectLastSync(now)
