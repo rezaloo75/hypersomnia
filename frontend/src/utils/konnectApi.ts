@@ -43,11 +43,37 @@ export async function getCloudGatewayBaseUrl(
   const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
     'filter[control_plane_id]': cpId,
     'filter[control_plane_geo]': geo,
-  })
-  console.log(`[Konnect] cloud-gateways config for ${cpId}:`, JSON.stringify(json, null, 2))
-  const data = (json as { data?: Array<Record<string, unknown>> }).data
-  const hostname = (data?.[0]?.dataplane_groups as Array<{ hostnames?: string[] }>)?.[0]?.hostnames?.[0]
-  return hostname ? `https://${hostname}` : null
+  }) as { data?: Array<Record<string, unknown>> }
+
+  const config = json.data?.[0]
+  if (!config) return null
+
+  const kind = config.kind as string
+
+  // Serverless gateways: proxy hostname is in dataplane_groups[].hostnames[]
+  if (kind === 'serverless.v0') {
+    const hostname = (config.dataplane_groups as Array<{ hostnames?: string[] }>)?.[0]?.hostnames?.[0]
+    return hostname ? `https://${hostname}` : null
+  }
+
+  // Dedicated cloud gateways: proxy URL comes from the associated network
+  if (kind === 'dedicated.v0') {
+    const networkId = (config.dataplane_group_config as Array<{ cloud_gateway_network_id?: string }>)?.[0]?.cloud_gateway_network_id
+    if (networkId) {
+      return getDedicatedGatewayUrl(pat, networkId)
+    }
+  }
+
+  return null
+}
+
+async function getDedicatedGatewayUrl(pat: string, networkId: string): Promise<string | null> {
+  const json = await konnectGet(pat, 'global', `/v2/cloud-gateways/networks/${networkId}`, {})
+  console.log(`[Konnect] network ${networkId}:`, JSON.stringify(json, null, 2))
+  const data = json as Record<string, unknown>
+  // Try known field names for the public proxy URL
+  const raw = data.public_dns ?? data.proxy_url ?? data.endpoint_url ?? data.hostname
+  return raw ? `https://${raw}` : null
 }
 
 export interface KonnectService {
