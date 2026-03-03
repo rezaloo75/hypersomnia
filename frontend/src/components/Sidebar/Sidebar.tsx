@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { PencilIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import { WorkspaceTree } from './WorkspaceTree'
@@ -123,16 +124,16 @@ export function Sidebar() {
                 title="Rename workspace"
                 onClick={() => { setEditingId(activeWs.id); setEditName(activeWs.name) }}
               >
-                ✏️ Rename
+                <PencilIcon className="w-3.5 h-3.5 inline mr-1" />Rename
               </button>
             )}
-            <button className="btn-ghost text-xs py-1" title="Export workspace" onClick={handleExport}>⬇️</button>
-            <button className="btn-ghost text-xs py-1" title="Import workspace" onClick={() => importRef.current?.click()}>⬆️</button>
+            <button className="btn-ghost py-1 px-1.5" title="Export workspace" onClick={handleExport}><ArrowDownTrayIcon className="w-3.5 h-3.5" /></button>
+            <button className="btn-ghost py-1 px-1.5" title="Import workspace" onClick={() => importRef.current?.click()}><ArrowUpTrayIcon className="w-3.5 h-3.5" /></button>
             <button
-              className="btn-ghost text-xs py-1 text-red-400 hover:text-red-300"
+              className="btn-ghost py-1 px-1.5 text-red-400 hover:text-red-300"
               title="Delete workspace"
               onClick={() => { if (confirm(`Delete workspace "${activeWs.name}"?`)) deleteWorkspace(activeWs.id) }}
-            >🗑</button>
+            ><TrashIcon className="w-3.5 h-3.5" /></button>
           </div>
         )}
         <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />

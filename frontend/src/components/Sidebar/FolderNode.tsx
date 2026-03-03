@@ -1,3 +1,4 @@
+import { ChevronRightIcon, ChevronDownIcon, FolderIcon, FolderOpenIcon, PlusIcon, FolderPlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { Folder } from '../../types'
@@ -35,12 +36,18 @@ export function FolderNode({ folder, depth, forceExpand }: Props) {
         style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
         <button
-          className="text-gray-400 hover:text-gray-200 w-4 text-center flex-shrink-0"
+          className="text-gray-400 hover:text-gray-200 flex-shrink-0"
           onClick={() => toggleFolder(folder.id)}
         >
-          {isExpanded ? '▾' : '▸'}
+          {isExpanded
+            ? <ChevronDownIcon className="w-3.5 h-3.5" />
+            : <ChevronRightIcon className="w-3.5 h-3.5" />}
         </button>
-        <span className="text-yellow-400 flex-shrink-0">📁</span>
+        <span className="flex-shrink-0 text-yellow-400">
+          {isExpanded
+            ? <FolderOpenIcon className="w-4 h-4" />
+            : <FolderIcon className="w-4 h-4" />}
+        </span>
         <span
           className="flex-1 truncate text-xs text-gray-300"
           onClick={() => toggleFolder(folder.id)}
@@ -49,25 +56,33 @@ export function FolderNode({ folder, depth, forceExpand }: Props) {
         </span>
         <div className="hidden group-hover:flex gap-0.5">
           <button
-            className="btn-ghost text-xs px-1 py-0"
+            className="btn-ghost px-1 py-0"
             title="Add request"
             onClick={e => { e.stopPropagation(); const n = prompt('Request name:') ?? 'New Request'; createRequest(folder.workspaceId, n.trim() || 'New Request', folder.id) }}
-          >+</button>
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+          </button>
           <button
-            className="btn-ghost text-xs px-1 py-0"
+            className="btn-ghost px-1 py-0"
             title="Add subfolder"
             onClick={e => { e.stopPropagation(); const n = prompt('Folder name:'); if (n?.trim()) createFolder(folder.workspaceId, n.trim(), folder.id) }}
-          >📁</button>
+          >
+            <FolderPlusIcon className="w-3.5 h-3.5" />
+          </button>
           <button
-            className="btn-ghost text-xs px-1 py-0"
+            className="btn-ghost px-1 py-0"
             title="Rename"
             onClick={e => { e.stopPropagation(); const n = prompt('New name:', folder.name); if (n?.trim()) updateFolder(folder.id, { name: n.trim() }) }}
-          >✏️</button>
+          >
+            <PencilIcon className="w-3.5 h-3.5" />
+          </button>
           <button
-            className="btn-ghost text-xs px-1 py-0 text-red-400"
+            className="btn-ghost px-1 py-0 text-red-400"
             title="Delete folder"
             onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${folder.name}" and all its contents?`)) deleteFolder(folder.id) }}
-          >🗑</button>
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

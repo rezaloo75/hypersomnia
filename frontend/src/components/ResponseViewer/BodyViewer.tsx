@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import CodeMirror from '@uiw/react-codemirror'
 import { json } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -56,7 +57,7 @@ export function BodyViewer({ execution }: Props) {
         )}
         <div className="flex-1" />
         <button className="btn-ghost text-xs" onClick={copyBody}>
-          {copied ? '✓' : '⧉ Copy'}
+          {copied ? <CheckIcon className="w-4 h-4" /> : <><ClipboardDocumentIcon className="w-3.5 h-3.5 inline mr-1" />Copy</>}
         </button>
       </div>
 

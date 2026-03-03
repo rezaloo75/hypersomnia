@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BoltIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import { UrlBar } from './UrlBar'
@@ -46,7 +47,7 @@ export function RequestEditor() {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
         <div className="text-center">
-          <div className="text-4xl mb-3">⚡</div>
+          <BoltIcon className="w-10 h-10 mb-3 mx-auto text-gray-700" />
           <p className="text-sm">Select or create a request to get started</p>
         </div>
       </div>
@@ -75,7 +76,7 @@ export function RequestEditor() {
           title="Copy as cURL"
           onClick={handleCopyCurl}
         >
-          {copied ? '✓ Copied' : '⧉ cURL'}
+          {copied ? <><CheckIcon className="w-3.5 h-3.5 inline mr-1" />Copied</> : <><ClipboardDocumentIcon className="w-3.5 h-3.5 inline mr-1" />cURL</>}
         </button>
       </div>
 

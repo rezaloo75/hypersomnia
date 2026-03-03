@@ -1,3 +1,5 @@
+import type React from 'react'
+import { PlusCircleIcon, PencilSquareIcon, FolderPlusIcon, KeyIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import type { AIResponse, AIOperation } from '../../types'
 
@@ -93,7 +95,7 @@ function OperationCard({ op, onApply }: { op: AIOperation; onApply: () => void }
   return (
     <div className="bg-gray-900 rounded p-2 flex items-start justify-between gap-2">
       <div className="flex items-start gap-2 flex-1 min-w-0">
-        <span className="text-lg flex-shrink-0">{icon}</span>
+        <span className="flex-shrink-0 mt-0.5">{icon}</span>
         <div className="text-xs min-w-0">
           <div className="text-gray-200 font-medium">{label}</div>
           {op.data?.method && op.data?.url && (
@@ -124,13 +126,13 @@ function getOperationLabel(op: AIOperation): string {
   }
 }
 
-function getOperationIcon(op: AIOperation): string {
+function getOperationIcon(op: AIOperation): React.ReactNode {
   switch (op.op) {
-    case 'create_request': return '➕'
-    case 'update_request': return '✏️'
-    case 'create_folder': return '📁'
-    case 'set_env_vars': return '🔑'
-    case 'delete_request': return '🗑️'
-    default: return '⚙️'
+    case 'create_request': return <PlusCircleIcon className="w-4 h-4 text-green-400" />
+    case 'update_request': return <PencilSquareIcon className="w-4 h-4 text-blue-400" />
+    case 'create_folder':  return <FolderPlusIcon className="w-4 h-4 text-yellow-400" />
+    case 'set_env_vars':   return <KeyIcon className="w-4 h-4 text-purple-400" />
+    case 'delete_request': return <TrashIcon className="w-4 h-4 text-red-400" />
+    default:               return <Cog6ToothIcon className="w-4 h-4 text-gray-400" />
   }
 }

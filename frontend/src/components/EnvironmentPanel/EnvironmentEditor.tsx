@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { v4 as uuid } from 'uuid'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 
 interface Props {
@@ -47,7 +48,7 @@ export function EnvironmentEditor({ environmentId, onClose }: Props) {
     <div className="bg-gray-800 border border-gray-700 rounded p-3">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-gray-200">{env.name}</span>
-        <button className="btn-ghost text-xs" onClick={onClose}>✕</button>
+        <button className="btn-ghost p-0.5" onClick={onClose}><XMarkIcon className="w-4 h-4" /></button>
       </div>
 
       <div className="space-y-1 mb-2 max-h-56 overflow-y-auto">
@@ -69,7 +70,7 @@ export function EnvironmentEditor({ environmentId, onClose }: Props) {
             <button
               className="btn-ghost text-xs px-1.5 text-red-400"
               onClick={() => removeRow(row.id)}
-            >✕</button>
+            ><XMarkIcon className="w-3.5 h-3.5" /></button>
           </div>
         ))}
         {rows.length === 0 && (

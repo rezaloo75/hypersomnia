@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react'
+import { SparklesIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '../Sidebar/Sidebar'
 import { RequestEditor } from '../RequestEditor/RequestEditor'
 import { ResponseViewer } from '../ResponseViewer/ResponseViewer'
@@ -94,7 +95,7 @@ export function AppLayout() {
           onClick={toggleAiPanel}
           title="Open AI Assistant"
         >
-          ✦
+          <SparklesIcon className="w-5 h-5" />
         </button>
       )}
     </div>

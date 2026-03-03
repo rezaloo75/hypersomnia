@@ -1,3 +1,4 @@
+import { InboxIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { StatusBadge } from './StatusBadge'
@@ -22,7 +23,7 @@ export function ResponseViewer() {
         )}
         <div className="flex items-center justify-center flex-1 text-gray-600">
           <div className="text-center">
-            <div className="text-3xl mb-2">📭</div>
+            <InboxIcon className="w-10 h-10 mb-2 mx-auto text-gray-700" />
             <p className="text-xs">Send a request to see the response</p>
             {history.length > 0 && !historyPanelOpen && (
               <button

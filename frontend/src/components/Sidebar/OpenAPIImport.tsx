@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { API_BASE } from '../../utils/api'
 
@@ -41,7 +42,7 @@ export function OpenAPIImport({ workspaceId, onClose }: Props) {
     <div className="bg-gray-800 rounded p-3 border border-gray-700">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-gray-300">Import OpenAPI 3.x</span>
-        <button className="btn-ghost text-xs" onClick={onClose}>✕</button>
+        <button className="btn-ghost p-0.5" onClick={onClose}><XMarkIcon className="w-4 h-4" /></button>
       </div>
       <p className="text-xs text-gray-400 mb-2">Upload a JSON or YAML OpenAPI spec file</p>
       <button

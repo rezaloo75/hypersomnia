@@ -1,3 +1,4 @@
+import { PencilIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import type { Request } from '../../types'
 
@@ -37,27 +38,33 @@ export function RequestNode({ request, depth }: Props) {
       </span>
       <div className="hidden group-hover:flex gap-0.5">
         <button
-          className="btn-ghost text-xs px-1 py-0"
+          className="btn-ghost px-1 py-0"
           title="Rename"
           onClick={e => {
             e.stopPropagation()
             const n = prompt('New name:', request.name)
             if (n?.trim()) updateRequest(request.id, { name: n.trim() })
           }}
-        >✏️</button>
+        >
+          <PencilIcon className="w-3.5 h-3.5" />
+        </button>
         <button
-          className="btn-ghost text-xs px-1 py-0"
+          className="btn-ghost px-1 py-0"
           title="Duplicate"
           onClick={e => { e.stopPropagation(); duplicateRequest(request.id) }}
-        >⧉</button>
+        >
+          <DocumentDuplicateIcon className="w-3.5 h-3.5" />
+        </button>
         <button
-          className="btn-ghost text-xs px-1 py-0 text-red-400"
+          className="btn-ghost px-1 py-0 text-red-400"
           title="Delete"
           onClick={e => {
             e.stopPropagation()
             if (confirm(`Delete "${request.name}"?`)) deleteRequest(request.id)
           }}
-        >🗑</button>
+        >
+          <TrashIcon className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )

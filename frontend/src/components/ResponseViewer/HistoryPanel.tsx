@@ -1,3 +1,4 @@
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { RequestExecution } from '../../types'
@@ -29,7 +30,7 @@ export function HistoryPanel({ onClose }: Props) {
         <span className="text-xs font-semibold text-gray-400">Request History</span>
         <div className="flex gap-2">
           <button className="btn-ghost text-xs" onClick={clearHistory}>Clear</button>
-          <button className="btn-ghost text-xs" onClick={onClose}>✕</button>
+          <button className="btn-ghost p-0.5" onClick={onClose}><XMarkIcon className="w-4 h-4" /></button>
         </div>
       </div>
       {history.map(entry => (

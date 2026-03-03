@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { KeyValuePair } from '../../types'
 
 interface Props {
@@ -47,7 +48,7 @@ export function KeyValueTable({ pairs, onChange, keyPlaceholder = 'Key', valuePl
             <button
               className="btn-ghost text-xs px-1.5 text-red-400 flex-shrink-0"
               onClick={() => remove(pair.id)}
-            >✕</button>
+            ><XMarkIcon className="w-3.5 h-3.5" /></button>
           </div>
         ))}
       </div>

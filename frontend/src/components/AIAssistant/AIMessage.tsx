@@ -1,3 +1,4 @@
+import { SparklesIcon } from '@heroicons/react/24/outline'
 import type { AIMessage as AIMessageType } from '../../types'
 
 interface Props {
@@ -17,7 +18,7 @@ export function AIMessage({ message }: Props) {
         }
       >
         {!isUser && (
-          <div className="font-semibold text-xs mb-1" style={{ color: '#6fdc0e' }}>✦ AI</div>
+          <div className="flex items-center gap-1 font-semibold text-xs mb-1" style={{ color: '#6fdc0e' }}><SparklesIcon className="w-3.5 h-3.5" />AI</div>
         )}
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>

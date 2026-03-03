@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { TrashIcon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { AIMessage } from './AIMessage'
@@ -99,11 +100,12 @@ export function AIAssistant() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold" style={{ color: '#6fdc0e' }}>✦ AI Assistant</span>
+          <SparklesIcon className="w-4 h-4" style={{ color: '#6fdc0e' }} />
+          <span className="text-xs font-semibold" style={{ color: '#6fdc0e' }}>AI Assistant</span>
         </div>
         <div className="flex gap-1">
-          <button className="btn-ghost text-xs" onClick={clearAiMessages} title="Clear conversation">🗑</button>
-          <button className="btn-ghost text-xs" onClick={() => setAiPanelOpen(false)}>✕</button>
+          <button className="btn-ghost p-1" onClick={clearAiMessages} title="Clear conversation"><TrashIcon className="w-4 h-4" /></button>
+          <button className="btn-ghost p-1" onClick={() => setAiPanelOpen(false)}><XMarkIcon className="w-4 h-4" /></button>
         </div>
       </div>
 

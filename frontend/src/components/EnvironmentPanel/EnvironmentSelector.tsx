@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { EnvironmentEditor } from './EnvironmentEditor'
 
@@ -42,15 +43,15 @@ export function EnvironmentSelector({ workspaceId }: Props) {
         {activeEnv && (
           <>
             <button
-              className="btn-ghost text-xs px-1.5"
+              className="btn-ghost px-1.5"
               title="Edit environment variables"
               onClick={() => setEditingId(editingId === activeEnv.id ? null : activeEnv.id)}
-            >✏️</button>
+            ><PencilIcon className="w-3.5 h-3.5" /></button>
             <button
-              className="btn-ghost text-xs px-1.5 text-red-400"
+              className="btn-ghost px-1.5 text-red-400"
               title="Delete environment"
               onClick={() => { if (confirm(`Delete environment "${activeEnv.name}"?`)) deleteEnvironment(activeEnv.id) }}
-            >🗑</button>
+            ><TrashIcon className="w-3.5 h-3.5" /></button>
           </>
         )}
       </div>
