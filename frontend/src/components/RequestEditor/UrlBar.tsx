@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import { segmentize } from '../../utils/interpolate'
@@ -24,9 +25,11 @@ interface Props {
 export function UrlBar({ request, variables, onSend }: Props) {
   const { updateRequest } = useWorkspaceStore()
   const { isSending } = useUIStore()
+  const [focused, setFocused] = useState(false)
 
   const segments = segmentize(request.url, variables)
   const hasUnresolved = segments.some(s => s.isVar && s.unresolved)
+  const hasVars = segments.some(s => s.isVar)
 
   return (
     <div className="flex gap-2">
@@ -43,21 +46,24 @@ export function UrlBar({ request, variables, onSend }: Props) {
       <div className="flex-1 relative">
         <input
           className={`input-base w-full py-1 pr-2 ${hasUnresolved ? 'border-red-500/60' : ''}`}
-          placeholder="https://api.example.com/{{baseUrl}}/endpoint"
+          placeholder="https://api.example.com/endpoint"
           value={request.url}
           onChange={e => updateRequest(request.id, { url: e.target.value })}
           onKeyDown={e => { if (e.key === 'Enter') onSend() }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
-        {/* Variable preview */}
-        {request.url && segments.some(s => s.isVar) && (
-          <div className="absolute top-full left-0 right-0 z-10 mt-0.5 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs">
+        {/* Variable preview — only shown while input is focused */}
+        {focused && hasVars && (
+          <div className="absolute top-full left-0 right-0 z-10 mt-0.5 rounded px-2 py-1 text-xs truncate"
+            style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }}>
             {segments.map((seg, i) =>
               seg.isVar ? (
                 <span key={i} className={`font-semibold ${seg.unresolved ? 'text-red-400' : 'text-green-400'}`}>
                   {seg.unresolved ? seg.text : seg.resolved}
                 </span>
               ) : (
-                <span key={i} className="text-gray-300">{seg.text}</span>
+                <span key={i} className="text-gray-400">{seg.text}</span>
               )
             )}
           </div>
