@@ -7,6 +7,8 @@ import {
   listServices,
   listRoutes,
   buildBaseUrl,
+  extractGeo,
+  getCloudGatewayBaseUrl,
   REGION_LABELS,
   type KonnectRegion,
 } from '../../utils/konnectApi'
@@ -131,10 +133,18 @@ export function KonnectModal({ onClose }: Props) {
 
         // Environment for this control plane
         const envId = `konnect-env-${cp.id}`
-        const apiBaseUrl = buildBaseUrl(cp)
-        // Preserve any baseUrl the user manually set on a previous sync
-        const preservedBaseUrl = existingEnvs.get(envId)?.baseUrl ?? ''
-        const baseUrl = apiBaseUrl || preservedBaseUrl
+        let baseUrl = buildBaseUrl(cp)
+
+        // For serverless CPs where proxy_urls is empty, try the v3 cloud-gateways API
+        if (!baseUrl) {
+          const geo = extractGeo(cp.config?.control_plane_endpoint)
+          if (geo) {
+            baseUrl = await getCloudGatewayBaseUrl(token, cp.id, geo) ?? ''
+          }
+        }
+
+        // Fall back to any baseUrl the user manually set on a previous sync
+        if (!baseUrl) baseUrl = existingEnvs.get(envId)?.baseUrl ?? ''
         if (!baseUrl) missingBaseUrl.push(cp.name)
         environments.push({
           id: envId,

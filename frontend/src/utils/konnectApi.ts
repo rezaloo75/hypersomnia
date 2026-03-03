@@ -25,6 +25,29 @@ export interface KonnectCP {
   }
 }
 
+/** Extract geo slug from a control_plane_endpoint URL.
+ *  e.g. "https://3d67a91782.us.cp0.konghq.com" → "us" */
+export function extractGeo(endpoint?: string): string | null {
+  if (!endpoint) return null
+  const match = endpoint.match(/\.([a-z0-9-]+)\.cp0\.konghq\.com/)
+  return match?.[1] ?? null
+}
+
+/** Fetch the proxy hostname for a serverless CP from the (undocumented) v3 cloud-gateways API.
+ *  Returns a full https:// URL or null if unavailable. */
+export async function getCloudGatewayBaseUrl(
+  pat: string,
+  cpId: string,
+  geo: string,
+): Promise<string | null> {
+  const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
+    'filter[control_plane_id]': cpId,
+    'filter[control_plane_geo]': geo,
+  }) as { data?: Array<{ dataplane_groups?: Array<{ hostnames?: string[] }> }> }
+  const hostname = json.data?.[0]?.dataplane_groups?.[0]?.hostnames?.[0]
+  return hostname ? `https://${hostname}` : null
+}
+
 export interface KonnectService {
   id: string
   name: string
