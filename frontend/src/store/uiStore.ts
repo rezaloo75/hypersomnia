@@ -48,7 +48,7 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   sidebarWidth: 260,
-  aiPanelOpen: false,
+  aiPanelOpen: true,
   setSidebarWidth: (w) => set({ sidebarWidth: w }),
   setAiPanelOpen: (open) => set({ aiPanelOpen: open }),
   toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
