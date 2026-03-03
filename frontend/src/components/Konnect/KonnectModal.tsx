@@ -104,6 +104,11 @@ export function KonnectModal({ onClose }: Props) {
     try {
       const cps = await listControlPlanes(token, region)
 
+      // Temporary debug: log the raw CP structure so we can see all available fields
+      if (cps.length > 0) {
+        console.log('[Konnect] First CP raw object:', JSON.stringify(cps[0], null, 2))
+      }
+
       const workspace: Workspace = {
         id: KONNECT_WS_ID,
         name: 'Konnect',

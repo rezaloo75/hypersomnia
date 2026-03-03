@@ -19,7 +19,8 @@ export interface KonnectCP {
   id: string
   name: string
   proxy_urls?: KonnectProxyUrl[]
-  config?: { control_plane_endpoint?: string }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any // allow inspection of unknown fields during debugging
 }
 
 export interface KonnectService {
