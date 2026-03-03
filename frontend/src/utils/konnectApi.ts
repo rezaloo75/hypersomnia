@@ -18,9 +18,11 @@ export interface KonnectProxyUrl {
 export interface KonnectCP {
   id: string
   name: string
-  proxy_urls?: KonnectProxyUrl[]
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any // allow inspection of unknown fields during debugging
+  config?: {
+    proxy_urls?: KonnectProxyUrl[]
+    control_plane_endpoint?: string
+    cluster_type?: string
+  }
 }
 
 export interface KonnectService {
@@ -36,15 +38,18 @@ export interface KonnectRoute {
   service?: { id: string } | null
 }
 
-export function buildBaseUrl(proxyUrls?: KonnectProxyUrl[]): string {
-  if (!proxyUrls?.length) return ''
-  const p = proxyUrls[0]
-  const isDefaultPort =
-    (p.protocol === 'https' && p.port === 443) ||
-    (p.protocol === 'http' && p.port === 80)
-  return isDefaultPort
-    ? `${p.protocol}://${p.host}`
-    : `${p.protocol}://${p.host}:${p.port}`
+export function buildBaseUrl(cp: KonnectCP): string {
+  const proxyUrls = cp.config?.proxy_urls
+  if (proxyUrls?.length) {
+    const p = proxyUrls[0]
+    const isDefaultPort =
+      (p.protocol === 'https' && p.port === 443) ||
+      (p.protocol === 'http' && p.port === 80)
+    return isDefaultPort
+      ? `${p.protocol}://${p.host}`
+      : `${p.protocol}://${p.host}:${p.port}`
+  }
+  return ''
 }
 
 async function konnectGet(

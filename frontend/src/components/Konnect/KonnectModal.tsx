@@ -37,6 +37,7 @@ interface SyncResult {
   environments: number
   folders: number
   requests: number
+  missingBaseUrl: string[]
 }
 
 interface Props {
@@ -104,11 +105,6 @@ export function KonnectModal({ onClose }: Props) {
     try {
       const cps = await listControlPlanes(token, region)
 
-      // Temporary debug: log the raw CP structure so we can see all available fields
-      if (cps.length > 0) {
-        console.log('[Konnect] First CP raw object:', JSON.stringify(cps[0], null, 2))
-      }
-
       const workspace: Workspace = {
         id: KONNECT_WS_ID,
         name: 'Konnect',
@@ -120,18 +116,20 @@ export function KonnectModal({ onClose }: Props) {
       const folders: Folder[] = []
       const requests: Request[] = []
       let totalRequests = 0
+      const missingBaseUrl: string[] = []
 
       for (let i = 0; i < cps.length; i++) {
         const cp = cps[i]
         setProgress({ current: cp.name, done: i, total: cps.length })
 
         // Environment for this control plane
-        const baseUrl = buildBaseUrl(cp.proxy_urls)
+        const baseUrl = buildBaseUrl(cp)
+        if (!baseUrl) missingBaseUrl.push(cp.name)
         environments.push({
           id: `konnect-env-${cp.id}`,
           workspaceId: KONNECT_WS_ID,
           name: cp.name,
-          variables: baseUrl ? { baseUrl } : {},
+          variables: { baseUrl },
         })
 
         // Top-level folder per control plane
@@ -219,6 +217,7 @@ export function KonnectModal({ onClose }: Props) {
         environments: environments.length,
         folders: folders.filter(f => !f.parentId).length,
         requests: totalRequests,
+        missingBaseUrl,
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -389,15 +388,28 @@ export function KonnectModal({ onClose }: Props) {
 
           {/* Sync result */}
           {result && (
-            <div className="flex items-start gap-2 p-3 rounded text-xs"
-              style={{ background: '#0a1a0a', border: '1px solid #1a3a1a', color: '#6fdc0e' }}>
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>
-                Synced <strong>{result.controlPlanes}</strong> control planes →{' '}
-                <strong>{result.environments}</strong> environments,{' '}
-                <strong>{result.requests}</strong> requests imported into the{' '}
-                <strong>Konnect</strong> workspace.
-              </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start gap-2 p-3 rounded text-xs"
+                style={{ background: '#0a1a0a', border: '1px solid #1a3a1a', color: '#6fdc0e' }}>
+                <CheckCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Synced <strong>{result.controlPlanes}</strong> control planes →{' '}
+                  <strong>{result.environments}</strong> environments,{' '}
+                  <strong>{result.requests}</strong> requests imported into the{' '}
+                  <strong>Konnect</strong> workspace.
+                </span>
+              </div>
+              {result.missingBaseUrl.length > 0 && (
+                <div className="flex items-start gap-2 p-3 rounded text-xs"
+                  style={{ background: '#1a1200', border: '1px solid #3a2a00', color: '#f59e0b' }}>
+                  <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>
+                    <strong>{result.missingBaseUrl.length}</strong> control plane{result.missingBaseUrl.length > 1 ? 's have' : ' has'} no proxy URL
+                    ({result.missingBaseUrl.join(', ')}). Set <code className="font-mono">baseUrl</code> manually
+                    in each environment to use <code className="font-mono">{'{{baseUrl}}'}</code> in requests.
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
