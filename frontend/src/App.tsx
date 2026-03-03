@@ -1,18 +1,6 @@
-import { useEffect } from 'react'
 import { AppLayout } from './components/Layout/AppLayout'
-import { useWorkspaceStore } from './store/workspaceStore'
 
 function App() {
-  const { workspaces, createWorkspace, activeWorkspaceId, setActiveWorkspace } = useWorkspaceStore()
-
-  // Create a default workspace on first load
-  useEffect(() => {
-    if (workspaces.length === 0) {
-      createWorkspace('My Workspace')
-    } else if (!activeWorkspaceId && workspaces.length > 0) {
-      setActiveWorkspace(workspaces[0].id)
-    }
-  }, [])
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-950">

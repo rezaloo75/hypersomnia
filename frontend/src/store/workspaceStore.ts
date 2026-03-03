@@ -5,6 +5,25 @@ import type {
   HttpMethod, KeyValuePair
 } from '../types'
 import { storage } from '../db/storage'
+import {
+  seedWorkspace, seedFolders, seedRequests, seedEnvironment,
+  SEED_ACTIVE_REQUEST_ID, SEED_ACTIVE_ENV_ID,
+} from '../db/seed'
+
+// Seed localStorage on first ever load (no existing workspaces)
+function initStorage() {
+  const existing = storage.loadWorkspaces()
+  if (existing.length === 0) {
+    storage.saveWorkspaces([seedWorkspace])
+    storage.saveFolders(seedFolders)
+    storage.saveRequests(seedRequests)
+    storage.saveEnvironments([seedEnvironment])
+    storage.saveActiveWorkspaceId(seedWorkspace.id)
+    storage.saveActiveRequestId(SEED_ACTIVE_REQUEST_ID)
+    storage.saveActiveEnvironmentId(SEED_ACTIVE_ENV_ID)
+  }
+}
+initStorage()
 
 const MAX_HISTORY = 50
 
