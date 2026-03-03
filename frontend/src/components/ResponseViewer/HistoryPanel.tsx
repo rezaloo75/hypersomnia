@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { RequestExecution } from '../../types'
@@ -13,18 +15,36 @@ const METHOD_COLORS: Record<string, string> = {
 export function HistoryPanel() {
   const { history, clearHistory } = useWorkspaceStore()
   const { setCurrentExecution } = useUIStore()
+  const [collapsed, setCollapsed] = useState(false)
 
   function select(entry: RequestExecution) {
     setCurrentExecution(entry)
   }
 
   return (
-    <div className="max-h-64 overflow-y-auto bg-gray-950">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-400">History</span>
-        <button className="btn-ghost text-xs" onClick={clearHistory}>Clear</button>
+    <div className="bg-gray-950">
+      <div
+        className="flex items-center justify-between px-3 py-2 border-b border-gray-800 cursor-pointer select-none hover:bg-gray-900 transition-colors"
+        onClick={() => setCollapsed(v => !v)}
+      >
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+          {collapsed
+            ? <ChevronRightIcon className="w-3.5 h-3.5" />
+            : <ChevronDownIcon className="w-3.5 h-3.5" />
+          }
+          History {history.length > 0 && <span className="text-gray-600">({history.length})</span>}
+        </div>
+        {!collapsed && (
+          <button
+            className="btn-ghost text-xs"
+            onClick={(e) => { e.stopPropagation(); clearHistory() }}
+          >
+            Clear
+          </button>
+        )}
       </div>
-      {history.map(entry => (
+      {!collapsed && <div className="max-h-56 overflow-y-auto">
+        {history.map(entry => (
         <div
           key={entry.id}
           className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-xs"
@@ -43,9 +63,10 @@ export function HistoryPanel() {
           </span>
         </div>
       ))}
-      {history.length === 0 && (
-        <div className="p-4 text-xs text-gray-500 text-center">No history yet</div>
-      )}
+        {history.length === 0 && (
+          <div className="p-4 text-xs text-gray-500 text-center">No history yet</div>
+        )}
+      </div>}
     </div>
   )
 }
