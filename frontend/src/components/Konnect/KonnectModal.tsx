@@ -114,6 +114,9 @@ export function KonnectModal({ onClose }: Props) {
     try {
       const cps = await listControlPlanes(token, region)
 
+      // Temporary: log all CP configs to identify proxy URL fields
+      cps.forEach(cp => console.log(`[Konnect] CP "${cp.name}":`, JSON.stringify(cp.config, null, 2)))
+
       const workspace: Workspace = {
         id: KONNECT_WS_ID,
         name: 'Konnect',
