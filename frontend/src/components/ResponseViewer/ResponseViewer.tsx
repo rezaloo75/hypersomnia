@@ -14,18 +14,25 @@ export function ResponseViewer() {
 
   if (!currentExecution) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-600">
-        <div className="text-center">
-          <div className="text-3xl mb-2">📭</div>
-          <p className="text-xs">Send a request to see the response</p>
-          {history.length > 0 && (
-            <button
-              className="btn-ghost text-xs mt-3"
-              onClick={() => setHistoryPanelOpen(true)}
-            >
-              View History ({history.length})
-            </button>
-          )}
+      <div className="flex flex-col h-full">
+        {historyPanelOpen && (
+          <div className="border-b border-gray-800 flex-shrink-0">
+            <HistoryPanel onClose={() => setHistoryPanelOpen(false)} />
+          </div>
+        )}
+        <div className="flex items-center justify-center flex-1 text-gray-600">
+          <div className="text-center">
+            <div className="text-3xl mb-2">📭</div>
+            <p className="text-xs">Send a request to see the response</p>
+            {history.length > 0 && !historyPanelOpen && (
+              <button
+                className="btn-ghost text-xs mt-3"
+                onClick={() => setHistoryPanelOpen(true)}
+              >
+                View History ({history.length})
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
