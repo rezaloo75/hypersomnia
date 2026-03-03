@@ -4,6 +4,7 @@ import cors from 'cors'
 import { relayRouter } from './routes/relay.js'
 import { aiRouter } from './routes/ai.js'
 import { importRouter } from './routes/importOpenapi.js'
+import { konnectRouter } from './routes/konnect.js'
 
 const app = express()
 const PORT = parseInt(process.env.PORT ?? '3001', 10)
@@ -42,6 +43,7 @@ app.use((req, _res, next) => {
 app.use('/api/relay', relayRouter)
 app.use('/api/ai', aiRouter)
 app.use('/api/import', importRouter)
+app.use('/api/konnect', konnectRouter)
 
 // Health check
 app.get('/api/health', (_req, res) => {

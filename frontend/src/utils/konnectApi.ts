@@ -1,3 +1,5 @@
+import { API_BASE } from './api'
+
 export type KonnectRegion = 'global' | 'us' | 'eu' | 'au'
 
 export const REGION_LABELS: Record<KonnectRegion, string> = {
@@ -5,13 +7,6 @@ export const REGION_LABELS: Record<KonnectRegion, string> = {
   us: 'US',
   eu: 'EU',
   au: 'Australia',
-}
-
-const REGION_BASES: Record<KonnectRegion, string> = {
-  global: 'https://global.api.konghq.com',
-  us: 'https://us.api.konghq.com',
-  eu: 'https://eu.api.konghq.com',
-  au: 'https://au.api.konghq.com',
 }
 
 export interface KonnectProxyUrl {
@@ -40,10 +35,6 @@ export interface KonnectRoute {
   service?: { id: string } | null
 }
 
-function headers(pat: string) {
-  return { Authorization: `Bearer ${pat}` }
-}
-
 export function buildBaseUrl(proxyUrls?: KonnectProxyUrl[]): string {
   if (!proxyUrls?.length) return ''
   const p = proxyUrls[0]
@@ -55,20 +46,31 @@ export function buildBaseUrl(proxyUrls?: KonnectProxyUrl[]): string {
     : `${p.protocol}://${p.host}:${p.port}`
 }
 
+async function konnectGet(
+  pat: string,
+  region: KonnectRegion,
+  path: string,
+  params?: Record<string, string>,
+): Promise<unknown> {
+  const res = await fetch(`${API_BASE}/api/konnect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pat, region, path, params }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
+  }
+  return res.json()
+}
+
 export async function listControlPlanes(pat: string, region: KonnectRegion): Promise<KonnectCP[]> {
-  const base = REGION_BASES[region]
   const results: KonnectCP[] = []
   let pageAfter: string | undefined
   do {
-    const url = new URL(`${base}/v2/control-planes`)
-    url.searchParams.set('pageSize', '100')
-    if (pageAfter) url.searchParams.set('pageAfter', pageAfter)
-    const res = await fetch(url.toString(), { headers: headers(pat) })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
-    }
-    const json = await res.json()
+    const params: Record<string, string> = { pageSize: '100' }
+    if (pageAfter) params.pageAfter = pageAfter
+    const json = await konnectGet(pat, region, '/v2/control-planes', params) as { data?: KonnectCP[]; meta?: { next?: { cursor?: string } } }
     results.push(...(json.data ?? []))
     pageAfter = json.meta?.next?.cursor ?? undefined
   } while (pageAfter)
@@ -80,16 +82,12 @@ export async function listServices(
   region: KonnectRegion,
   cpId: string,
 ): Promise<KonnectService[]> {
-  const base = REGION_BASES[region]
   const results: KonnectService[] = []
   let offset: string | undefined
   do {
-    const url = new URL(`${base}/v2/control-planes/${cpId}/core-entities/services`)
-    url.searchParams.set('size', '1000')
-    if (offset) url.searchParams.set('offset', offset)
-    const res = await fetch(url.toString(), { headers: headers(pat) })
-    if (!res.ok) throw new Error(`services ${res.status}`)
-    const json = await res.json()
+    const params: Record<string, string> = { size: '1000' }
+    if (offset) params.offset = offset
+    const json = await konnectGet(pat, region, `/v2/control-planes/${cpId}/core-entities/services`, params) as { data?: KonnectService[]; offset?: string }
     results.push(...(json.data ?? []))
     offset = json.offset
   } while (offset)
@@ -101,16 +99,12 @@ export async function listRoutes(
   region: KonnectRegion,
   cpId: string,
 ): Promise<KonnectRoute[]> {
-  const base = REGION_BASES[region]
   const results: KonnectRoute[] = []
   let offset: string | undefined
   do {
-    const url = new URL(`${base}/v2/control-planes/${cpId}/core-entities/routes`)
-    url.searchParams.set('size', '1000')
-    if (offset) url.searchParams.set('offset', offset)
-    const res = await fetch(url.toString(), { headers: headers(pat) })
-    if (!res.ok) throw new Error(`routes ${res.status}`)
-    const json = await res.json()
+    const params: Record<string, string> = { size: '1000' }
+    if (offset) params.offset = offset
+    const json = await konnectGet(pat, region, `/v2/control-planes/${cpId}/core-entities/routes`, params) as { data?: KonnectRoute[]; offset?: string }
     results.push(...(json.data ?? []))
     offset = json.offset
   } while (offset)
