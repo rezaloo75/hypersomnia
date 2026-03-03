@@ -102,6 +102,13 @@ export function KonnectModal({ onClose }: Props) {
     setResult(null)
     setProgress(null)
 
+    // Snapshot existing Konnect environments so we can preserve manually-set baseUrls
+    const existingEnvs = new Map(
+      useWorkspaceStore.getState().environments
+        .filter(e => e.workspaceId === KONNECT_WS_ID)
+        .map(e => [e.id, e.variables])
+    )
+
     try {
       const cps = await listControlPlanes(token, region)
 
@@ -123,10 +130,14 @@ export function KonnectModal({ onClose }: Props) {
         setProgress({ current: cp.name, done: i, total: cps.length })
 
         // Environment for this control plane
-        const baseUrl = buildBaseUrl(cp)
+        const envId = `konnect-env-${cp.id}`
+        const apiBaseUrl = buildBaseUrl(cp)
+        // Preserve any baseUrl the user manually set on a previous sync
+        const preservedBaseUrl = existingEnvs.get(envId)?.baseUrl ?? ''
+        const baseUrl = apiBaseUrl || preservedBaseUrl
         if (!baseUrl) missingBaseUrl.push(cp.name)
         environments.push({
-          id: `konnect-env-${cp.id}`,
+          id: envId,
           workspaceId: KONNECT_WS_ID,
           name: cp.name,
           variables: { baseUrl },
@@ -404,9 +415,10 @@ export function KonnectModal({ onClose }: Props) {
                   style={{ background: '#1a1200', border: '1px solid #3a2a00', color: '#f59e0b' }}>
                   <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
-                    <strong>{result.missingBaseUrl.length}</strong> control plane{result.missingBaseUrl.length > 1 ? 's have' : ' has'} no proxy URL
-                    ({result.missingBaseUrl.join(', ')}). Set <code className="font-mono">baseUrl</code> manually
-                    in each environment to use <code className="font-mono">{'{{baseUrl}}'}</code> in requests.
+                    Serverless control planes don't expose their proxy URL via the Konnect API
+                    ({result.missingBaseUrl.join(', ')}). Open each environment in the sidebar,
+                    paste your gateway's proxy URL into the <code className="font-mono">baseUrl</code> variable,
+                    and it will be preserved across re-syncs.
                   </span>
                 </div>
               )}
