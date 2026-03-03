@@ -24,10 +24,6 @@ interface UIState {
   setSending: (v: boolean) => void
   setCurrentExecution: (e: RequestExecution | null) => void
 
-  // History panel
-  historyPanelOpen: boolean
-  setHistoryPanelOpen: (v: boolean) => void
-
   // AI
   aiMessages: AIMessage[]
   aiLoading: boolean
@@ -62,9 +58,6 @@ export const useUIStore = create<UIState>((set) => ({
   currentExecution: null,
   setSending: (v) => set({ isSending: v }),
   setCurrentExecution: (e) => set({ currentExecution: e }),
-
-  historyPanelOpen: false,
-  setHistoryPanelOpen: (v) => set({ historyPanelOpen: v }),
 
   aiMessages: [],
   aiLoading: false,

@@ -1,4 +1,3 @@
-import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { RequestExecution } from '../../types'
@@ -11,27 +10,19 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'text-red-400',
 }
 
-interface Props {
-  onClose: () => void
-}
-
-export function HistoryPanel({ onClose }: Props) {
+export function HistoryPanel() {
   const { history, clearHistory } = useWorkspaceStore()
   const { setCurrentExecution } = useUIStore()
 
   function select(entry: RequestExecution) {
     setCurrentExecution(entry)
-    onClose()
   }
 
   return (
     <div className="max-h-64 overflow-y-auto bg-gray-950">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-400">Request History</span>
-        <div className="flex gap-2">
-          <button className="btn-ghost text-xs" onClick={clearHistory}>Clear</button>
-          <button className="btn-ghost p-0.5" onClick={onClose}><XMarkIcon className="w-4 h-4" /></button>
-        </div>
+        <span className="text-xs font-semibold text-gray-400">History</span>
+        <button className="btn-ghost text-xs" onClick={clearHistory}>Clear</button>
       </div>
       {history.map(entry => (
         <div

@@ -1,6 +1,5 @@
 import { InboxIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
-import { useWorkspaceStore } from '../../store/workspaceStore'
 import { StatusBadge } from './StatusBadge'
 import { BodyViewer } from './BodyViewer'
 import { HeadersViewer } from './HeadersViewer'
@@ -10,29 +9,18 @@ import { HistoryPanel } from './HistoryPanel'
 type Tab = 'body' | 'headers' | 'debug'
 
 export function ResponseViewer() {
-  const { currentExecution, activeResponseTab, setActiveResponseTab, historyPanelOpen, setHistoryPanelOpen } = useUIStore()
-  const { history } = useWorkspaceStore()
+  const { currentExecution, activeResponseTab, setActiveResponseTab } = useUIStore()
 
   if (!currentExecution) {
     return (
       <div className="flex flex-col h-full">
-        {historyPanelOpen && (
-          <div className="border-b border-gray-800 flex-shrink-0">
-            <HistoryPanel onClose={() => setHistoryPanelOpen(false)} />
-          </div>
-        )}
+        <div className="border-b border-gray-800 flex-shrink-0">
+          <HistoryPanel />
+        </div>
         <div className="flex items-center justify-center flex-1 text-gray-600">
           <div className="text-center">
             <InboxIcon className="w-10 h-10 mb-2 mx-auto text-gray-700" />
             <p className="text-xs">Send a request to see the response</p>
-            {history.length > 0 && !historyPanelOpen && (
-              <button
-                className="btn-ghost text-xs mt-3"
-                onClick={() => setHistoryPanelOpen(true)}
-              >
-                View History ({history.length})
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -44,6 +32,11 @@ export function ResponseViewer() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* History always visible */}
+      <div className="border-b border-gray-800 flex-shrink-0">
+        <HistoryPanel />
+      </div>
+
       {/* Status bar */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800 flex-shrink-0">
         <StatusBadge status={response.status} statusText={response.statusText} />
@@ -56,20 +49,7 @@ export function ResponseViewer() {
         {error && (
           <span className="text-xs text-red-400">⚠ {error}</span>
         )}
-        <div className="flex-1" />
-        <button
-          className="btn-ghost text-xs"
-          onClick={() => setHistoryPanelOpen(!historyPanelOpen)}
-        >
-          History ({history.length})
-        </button>
       </div>
-
-      {historyPanelOpen && (
-        <div className="border-b border-gray-800 flex-shrink-0">
-          <HistoryPanel onClose={() => setHistoryPanelOpen(false)} />
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 flex-shrink-0 bg-gray-950">
