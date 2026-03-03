@@ -33,7 +33,15 @@ export function extractGeo(endpoint?: string): string | null {
   return match?.[1] ?? null
 }
 
-/** Fetch the proxy hostname for a serverless CP from the (undocumented) v3 cloud-gateways API.
+/** Derive the Public Edge DNS hostname for a dedicated cloud gateway from its CP ID.
+ *  The hostname is the first 10 hex chars of the CP UUID (hyphens stripped) + ".gateways.konggateway.com".
+ *  e.g. CP ID "cf032d53-cb12-..." → "https://cf032d53cb.gateways.konggateway.com" */
+export function deriveDedicatedBaseUrl(cpId: string): string {
+  const prefix = cpId.replace(/-/g, '').slice(0, 10)
+  return `https://${prefix}.gateways.konggateway.com`
+}
+
+/** Fetch the proxy hostname for a cloud gateway CP from the (undocumented) v3 cloud-gateways API.
  *  Returns a full https:// URL or null if unavailable. */
 export async function getCloudGatewayBaseUrl(
   pat: string,
@@ -56,7 +64,11 @@ export async function getCloudGatewayBaseUrl(
     return hostname ? `https://${hostname}` : null
   }
 
-  // dedicated.v0: proxy URL is a user-configured custom domain, not exposed via this API
+  // Dedicated gateways: Public Edge DNS is derived from the CP ID (not exposed via this API yet)
+  if (kind === 'dedicated.v0') {
+    return deriveDedicatedBaseUrl(cpId)
+  }
+
   return null
 }
 
