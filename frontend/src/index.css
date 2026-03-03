@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-gray-950 text-gray-100 font-mono text-sm;
+    overflow: hidden;
+    background-color: #0a0a0a;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+  }
+}
+
+@layer utilities {
+  .resize-handle {
+    background: #1a1a1a;
+    width: 3px;
+    flex-shrink: 0;
+    cursor: col-resize;
+    transition: background 0.15s;
+  }
+
+  .resize-handle:hover {
+    background: #6fdc0e;
+  }
+
+  .tab-btn {
+    @apply px-3 py-1.5 text-xs font-medium border-b-2 transition-colors;
+  }
+
+  .tab-btn-active {
+    border-color: #6fdc0e;
+    color: #93ef2b;
+  }
+
+  .tab-btn-inactive {
+    @apply border-transparent text-gray-400 hover:text-gray-200;
+  }
+
+  .input-base {
+    background: #111111;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 0.875rem;
+    color: #e5e5e5;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .input-base:focus {
+    border-color: #6fdc0e;
+    box-shadow: 0 0 0 1px #6fdc0e40;
+  }
+
+  .btn-primary {
+    background: #3d9108;
+    color: #f0fde4;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #52b80a;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: #1a1a1a;
+    color: #d1d5db;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid #2a2a2a;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-secondary:hover {
+    background: #242424;
+  }
+
+  .btn-danger {
+    background: #7f1d1d;
+    color: #fecaca;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-danger:hover {
+    background: #991b1b;
+  }
+
+  .btn-ghost {
+    color: #9ca3af;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .btn-ghost:hover {
+    color: #e5e7eb;
+    background: #1a1a1a;
+  }
+
+  .method-GET    { color: #4ade80; background: rgba(74,222,128,0.1); }
+  .method-POST   { color: #facc15; background: rgba(250,204,21,0.1); }
+  .method-PUT    { color: #60a5fa; background: rgba(96,165,250,0.1); }
+  .method-PATCH  { color: #fb923c; background: rgba(251,146,60,0.1); }
+  .method-DELETE { color: #f87171; background: rgba(248,113,113,0.1); }
+  .method-HEAD   { color: #c084fc; background: rgba(192,132,252,0.1); }
+  .method-OPTIONS{ color: #f472b6; background: rgba(244,114,182,0.1); }
+
+  /* Kong brand accent */
+  .kong-accent {
+    color: #6fdc0e;
+  }
+
+  .kong-badge {
+    background: #3d9108;
+    color: #f0fde4;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+  }
+}
