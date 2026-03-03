@@ -43,8 +43,10 @@ export async function getCloudGatewayBaseUrl(
   const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
     'filter[control_plane_id]': cpId,
     'filter[control_plane_geo]': geo,
-  }) as { data?: Array<{ dataplane_groups?: Array<{ hostnames?: string[] }> }> }
-  const hostname = json.data?.[0]?.dataplane_groups?.[0]?.hostnames?.[0]
+  })
+  console.log(`[Konnect] cloud-gateways config for ${cpId}:`, JSON.stringify(json, null, 2))
+  const data = (json as { data?: Array<Record<string, unknown>> }).data
+  const hostname = (data?.[0]?.dataplane_groups as Array<{ hostnames?: string[] }>)?.[0]?.hostnames?.[0]
   return hostname ? `https://${hostname}` : null
 }
 
