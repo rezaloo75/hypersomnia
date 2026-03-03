@@ -9,6 +9,9 @@ const KEYS = {
   activeWorkspaceId: 'hs_activeWorkspaceId',
   activeRequestId: 'hs_activeRequestId',
   activeEnvironmentId: 'hs_activeEnvironmentId',
+  konnectPat: 'hs_konnect_pat',
+  konnectRegion: 'hs_konnect_region',
+  konnectLastSync: 'hs_konnect_last_sync',
 } as const
 
 function load<T>(key: string, fallback: T): T {
@@ -52,4 +55,13 @@ export const storage = {
 
   loadActiveEnvironmentId: () => load<string | null>(KEYS.activeEnvironmentId, null),
   saveActiveEnvironmentId: (v: string | null) => save(KEYS.activeEnvironmentId, v),
+
+  loadKonnectPat: () => load<string | null>(KEYS.konnectPat, null),
+  saveKonnectPat: (v: string | null) => save(KEYS.konnectPat, v),
+
+  loadKonnectRegion: () => load<string>(KEYS.konnectRegion, 'global'),
+  saveKonnectRegion: (v: string) => save(KEYS.konnectRegion, v),
+
+  loadKonnectLastSync: () => load<string | null>(KEYS.konnectLastSync, null),
+  saveKonnectLastSync: (v: string | null) => save(KEYS.konnectLastSync, v),
 }
