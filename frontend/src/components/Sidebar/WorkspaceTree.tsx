@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FolderPlusIcon, PlusIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { Folder, Request } from '../../types'
@@ -38,31 +39,39 @@ export function WorkspaceTree({ workspaceId }: Props) {
   return (
     <div className="py-1">
       {/* Actions */}
-      <div className="flex gap-1 px-2 mb-2">
+      <div className="grid grid-cols-3 gap-1.5 px-2 mb-2">
         <button
-          className="btn-ghost text-xs flex-1"
+          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+          style={{ border: '1px solid #2a2a2a' }}
+          title="New Folder"
           onClick={() => {
             const name = prompt('Folder name:')
             if (name?.trim()) createFolder(workspaceId, name.trim())
           }}
         >
-          + Folder
+          <FolderPlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Folder</span>
         </button>
         <button
-          className="btn-ghost text-xs flex-1"
+          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+          style={{ border: '1px solid #2a2a2a' }}
+          title="New Request"
           onClick={() => {
             const name = prompt('Request name:') ?? 'New Request'
             createRequest(workspaceId, name.trim() || 'New Request')
           }}
         >
-          + Request
+          <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Request</span>
         </button>
         <button
-          className="btn-ghost text-xs"
+          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+          style={{ border: '1px solid #2a2a2a' }}
           title="Import OpenAPI"
           onClick={() => setShowImport(v => !v)}
         >
-          ⬆ API
+          <ArrowUpTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Import</span>
         </button>
       </div>
 
