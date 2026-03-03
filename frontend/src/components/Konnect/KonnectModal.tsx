@@ -135,11 +135,11 @@ export function KonnectModal({ onClose }: Props) {
         const envId = `konnect-env-${cp.id}`
         let baseUrl = buildBaseUrl(cp)
 
-        // For serverless CPs where proxy_urls is empty, try the v3 cloud-gateways API
+        // For cloud gateway CPs where proxy_urls is empty, try the v3 cloud-gateways API
         if (!baseUrl) {
           const geo = extractGeo(cp.config?.control_plane_endpoint)
           if (geo) {
-            baseUrl = await getCloudGatewayBaseUrl(token, cp.id, geo) ?? ''
+            baseUrl = await getCloudGatewayBaseUrl(token, cp.id, geo, cp.config?.control_plane_endpoint) ?? ''
           }
         }
 

@@ -33,12 +33,12 @@ export function extractGeo(endpoint?: string): string | null {
   return match?.[1] ?? null
 }
 
-/** Derive the Public Edge DNS hostname for a dedicated cloud gateway from its CP ID.
- *  The hostname is the first 10 hex chars of the CP UUID (hyphens stripped) + ".gateways.konggateway.com".
- *  e.g. CP ID "cf032d53-cb12-..." → "https://cf032d53cb.gateways.konggateway.com" */
-export function deriveDedicatedBaseUrl(cpId: string): string {
-  const prefix = cpId.replace(/-/g, '').slice(0, 10)
-  return `https://${prefix}.gateways.konggateway.com`
+/** Extract the CP prefix from a control_plane_endpoint URL.
+ *  e.g. "https://cf032d53cb.us.cp0.konghq.com" → "cf032d53cb" */
+export function extractCpPrefix(endpoint?: string): string | null {
+  if (!endpoint) return null
+  const match = endpoint.match(/^https?:\/\/([a-z0-9]+)\./)
+  return match?.[1] ?? null
 }
 
 /** Fetch the proxy hostname for a cloud gateway CP from the (undocumented) v3 cloud-gateways API.
@@ -47,6 +47,7 @@ export async function getCloudGatewayBaseUrl(
   pat: string,
   cpId: string,
   geo: string,
+  cpEndpoint?: string,
 ): Promise<string | null> {
   const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
     'filter[control_plane_id]': cpId,
@@ -64,9 +65,11 @@ export async function getCloudGatewayBaseUrl(
     return hostname ? `https://${hostname}` : null
   }
 
-  // Dedicated gateways: Public Edge DNS is derived from the CP ID (not exposed via this API yet)
+  // Dedicated gateways: Public Edge DNS is derived from the control_plane_endpoint prefix.
+  // e.g. "https://cf032d53cb.us.cp0.konghq.com" → "https://cf032d53cb.gateways.konggateway.com"
   if (kind === 'dedicated.v0') {
-    return deriveDedicatedBaseUrl(cpId)
+    const prefix = extractCpPrefix(cpEndpoint)
+    return prefix ? `https://${prefix}.gateways.konggateway.com` : null
   }
 
   return null
