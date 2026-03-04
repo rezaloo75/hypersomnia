@@ -37,22 +37,9 @@ export function WorkspaceTree() {
   return (
     <div className="py-1">
       {/* Actions */}
-      <div className="grid grid-cols-3 gap-1.5 px-2 mb-2">
+      <div className="flex flex-col gap-1.5 px-2 mb-2">
         <button
-          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-          style={{ border: '1px solid #2a2a2a' }}
-          title="New Folder"
-          onClick={() => {
-            const name = prompt('Folder name:')
-            if (name?.trim()) createFolder(name.trim())
-          }}
-        >
-          <FolderPlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Folder</span>
-        </button>
-        <button
-          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-          style={{ border: '1px solid #2a2a2a' }}
+          className="btn-primary flex items-center justify-center gap-1.5 py-1.5 text-xs w-full"
           title="New Request"
           onClick={() => {
             const name = prompt('Request name:') ?? 'New Request'
@@ -60,17 +47,31 @@ export function WorkspaceTree() {
           }}
         >
           <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Request</span>
+          <span>New Request</span>
         </button>
-        <button
-          className="flex items-center justify-center gap-1 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors"
-          style={{ border: '1px solid #2a2a2a' }}
-          title="Import OpenAPI"
-          onClick={() => setShowImport(v => !v)}
-        >
-          <ArrowUpTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>Import</span>
-        </button>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            className="flex items-center justify-center gap-1 py-1 rounded text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+            style={{ border: '1px solid #2a2a2a' }}
+            title="New Folder"
+            onClick={() => {
+              const name = prompt('Folder name:')
+              if (name?.trim()) createFolder(name.trim())
+            }}
+          >
+            <FolderPlusIcon className="w-3 h-3 flex-shrink-0" />
+            <span>Folder</span>
+          </button>
+          <button
+            className="flex items-center justify-center gap-1 py-1 rounded text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+            style={{ border: '1px solid #2a2a2a' }}
+            title="Import OpenAPI"
+            onClick={() => setShowImport(v => !v)}
+          >
+            <ArrowUpTrayIcon className="w-3 h-3 flex-shrink-0" />
+            <span>Import</span>
+          </button>
+        </div>
       </div>
 
       {showImport && (
