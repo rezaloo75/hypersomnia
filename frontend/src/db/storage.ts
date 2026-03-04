@@ -1,12 +1,10 @@
-import type { Workspace, Folder, Request, Environment, RequestExecution } from '../types'
+import type { Folder, Request, Environment, RequestExecution } from '../types'
 
 const KEYS = {
-  workspaces: 'hs_workspaces',
   folders: 'hs_folders',
   requests: 'hs_requests',
   environments: 'hs_environments',
   history: 'hs_history',
-  activeWorkspaceId: 'hs_activeWorkspaceId',
   activeRequestId: 'hs_activeRequestId',
   activeEnvironmentId: 'hs_activeEnvironmentId',
   konnectPat: 'hs_konnect_pat',
@@ -32,9 +30,6 @@ function save(key: string, value: unknown): void {
 }
 
 export const storage = {
-  loadWorkspaces: () => load<Workspace[]>(KEYS.workspaces, []),
-  saveWorkspaces: (v: Workspace[]) => save(KEYS.workspaces, v),
-
   loadFolders: () => load<Folder[]>(KEYS.folders, []),
   saveFolders: (v: Folder[]) => save(KEYS.folders, v),
 
@@ -46,9 +41,6 @@ export const storage = {
 
   loadHistory: () => load<RequestExecution[]>(KEYS.history, []),
   saveHistory: (v: RequestExecution[]) => save(KEYS.history, v),
-
-  loadActiveWorkspaceId: () => load<string | null>(KEYS.activeWorkspaceId, null),
-  saveActiveWorkspaceId: (v: string | null) => save(KEYS.activeWorkspaceId, v),
 
   loadActiveRequestId: () => load<string | null>(KEYS.activeRequestId, null),
   saveActiveRequestId: (v: string | null) => save(KEYS.activeRequestId, v),

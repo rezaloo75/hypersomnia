@@ -4,11 +4,10 @@ import { useWorkspaceStore } from '../../store/workspaceStore'
 import { API_BASE } from '../../utils/api'
 
 interface Props {
-  workspaceId: string
   onClose: () => void
 }
 
-export function OpenAPIImport({ workspaceId, onClose }: Props) {
+export function OpenAPIImport({ onClose }: Props) {
   const { importRequests } = useWorkspaceStore()
   const fileRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
@@ -28,7 +27,7 @@ export function OpenAPIImport({ workspaceId, onClose }: Props) {
       })
       const data = await res.json() as { folders?: unknown[]; requests?: unknown[]; error?: string }
       if (data.error) throw new Error(data.error)
-      importRequests(workspaceId, (data.folders ?? []) as Parameters<typeof importRequests>[1], (data.requests ?? []) as Parameters<typeof importRequests>[2])
+      importRequests((data.folders ?? []) as Parameters<typeof importRequests>[0], (data.requests ?? []) as Parameters<typeof importRequests>[1])
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed')

@@ -7,17 +7,13 @@ import { FolderNode } from './FolderNode'
 import { RequestNode } from './RequestNode'
 import { OpenAPIImport } from './OpenAPIImport'
 
-interface Props {
-  workspaceId: string
-}
-
-export function WorkspaceTree({ workspaceId }: Props) {
+export function WorkspaceTree() {
   const { folders, requests, createFolder, createRequest } = useWorkspaceStore()
   const { sidebarSearch } = useUIStore()
   const [showImport, setShowImport] = useState(false)
 
-  const wsFolder = folders.filter(f => f.workspaceId === workspaceId && !f.parentId)
-  const wsRequests = requests.filter(r => r.workspaceId === workspaceId && !r.folderId)
+  const rootFolders = folders.filter(f => !f.parentId)
+  const rootRequests = requests.filter(r => !r.folderId)
 
   const searchLower = sidebarSearch.toLowerCase()
   const isSearching = searchLower.length > 0
@@ -33,8 +29,10 @@ export function WorkspaceTree({ workspaceId }: Props) {
     return childFolders.some(folderHasMatch) || childRequests.some(matchesSearch)
   }
 
-  const visibleRootFolders = isSearching ? wsFolder.filter(folderHasMatch) : wsFolder
-  const visibleRootRequests = isSearching ? wsRequests.filter(matchesSearch) : wsRequests
+  const visibleRootFolders = isSearching ? rootFolders.filter(folderHasMatch) : rootFolders
+  const visibleRootRequests = isSearching ? rootRequests.filter(matchesSearch) : rootRequests
+
+  const isEmpty = !isSearching && folders.length === 0 && requests.length === 0
 
   return (
     <div className="py-1">
@@ -46,7 +44,7 @@ export function WorkspaceTree({ workspaceId }: Props) {
           title="New Folder"
           onClick={() => {
             const name = prompt('Folder name:')
-            if (name?.trim()) createFolder(workspaceId, name.trim())
+            if (name?.trim()) createFolder(name.trim())
           }}
         >
           <FolderPlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -58,7 +56,7 @@ export function WorkspaceTree({ workspaceId }: Props) {
           title="New Request"
           onClick={() => {
             const name = prompt('Request name:') ?? 'New Request'
-            createRequest(workspaceId, name.trim() || 'New Request')
+            createRequest(name.trim() || 'New Request')
           }}
         >
           <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
@@ -77,7 +75,7 @@ export function WorkspaceTree({ workspaceId }: Props) {
 
       {showImport && (
         <div className="px-2 mb-2">
-          <OpenAPIImport workspaceId={workspaceId} onClose={() => setShowImport(false)} />
+          <OpenAPIImport onClose={() => setShowImport(false)} />
         </div>
       )}
 
@@ -95,9 +93,23 @@ export function WorkspaceTree({ workspaceId }: Props) {
           <RequestNode key={request.id} request={request} depth={0} />
         ))}
 
-      {visibleRootFolders.length === 0 && visibleRootRequests.length === 0 && (
-        <div className="text-xs text-gray-500 px-4 py-2">
-          {isSearching ? 'No results' : 'No requests yet'}
+      {isSearching && visibleRootFolders.length === 0 && visibleRootRequests.length === 0 && (
+        <div className="text-xs text-gray-500 px-4 py-2">No results</div>
+      )}
+
+      {isEmpty && (
+        <div className="flex flex-col items-center justify-center px-4 py-8 gap-4">
+          <p className="text-xs text-gray-500 text-center">No requests yet. Create your first request to get started.</p>
+          <button
+            className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
+            onClick={() => {
+              const name = prompt('Request name:') ?? 'New Request'
+              createRequest(name.trim() || 'New Request')
+            }}
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+            New Request
+          </button>
         </div>
       )}
     </div>

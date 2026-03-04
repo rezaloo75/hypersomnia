@@ -58,14 +58,14 @@ export function FolderNode({ folder, depth, forceExpand }: Props) {
           <button
             className="btn-ghost px-1 py-0"
             title="Add request"
-            onClick={e => { e.stopPropagation(); const n = prompt('Request name:') ?? 'New Request'; createRequest(folder.workspaceId, n.trim() || 'New Request', folder.id) }}
+            onClick={e => { e.stopPropagation(); const n = prompt('Request name:') ?? 'New Request'; createRequest(n.trim() || 'New Request', folder.id) }}
           >
             <PlusIcon className="w-3.5 h-3.5" />
           </button>
           <button
             className="btn-ghost px-1 py-0"
             title="Add subfolder"
-            onClick={e => { e.stopPropagation(); const n = prompt('Folder name:'); if (n?.trim()) createFolder(folder.workspaceId, n.trim(), folder.id) }}
+            onClick={e => { e.stopPropagation(); const n = prompt('Folder name:'); if (n?.trim()) createFolder(n.trim(), folder.id) }}
           >
             <FolderPlusIcon className="w-3.5 h-3.5" />
           </button>

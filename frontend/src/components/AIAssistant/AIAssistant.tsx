@@ -10,12 +10,12 @@ import { API_BASE } from '../../utils/api'
 const MAX_CONTEXT_BODY = 4000
 
 function buildContext(store: ReturnType<typeof useWorkspaceStore.getState>, currentExecution: ReturnType<typeof useUIStore.getState>['currentExecution']) {
-  const { activeRequestId, activeWorkspaceId, activeEnvironmentId, requests, folders, environments } = store
+  const { activeRequestId, activeEnvironmentId, requests, folders, environments } = store
 
   const activeRequest = requests.find(r => r.id === activeRequestId)
   const activeEnv = environments.find(e => e.id === activeEnvironmentId)
-  const wsRequests = requests.filter(r => r.workspaceId === activeWorkspaceId).map(r => ({ id: r.id, name: r.name, method: r.method, url: r.url, folderId: r.folderId }))
-  const wsFolders = folders.filter(f => f.workspaceId === activeWorkspaceId).map(f => ({ id: f.id, name: f.name, parentId: f.parentId }))
+  const allRequests = requests.map(r => ({ id: r.id, name: r.name, method: r.method, url: r.url, folderId: r.folderId }))
+  const allFolders = folders.map(f => ({ id: f.id, name: f.name, parentId: f.parentId }))
 
   // Redact secrets from environment
   const safeVars: Record<string, string> = {}
@@ -37,7 +37,7 @@ function buildContext(store: ReturnType<typeof useWorkspaceStore.getState>, curr
   return {
     activeRequest,
     environment: activeEnv ? { name: activeEnv.name, variables: safeVars } : null,
-    workspaceTree: { folders: wsFolders, requests: wsRequests },
+    workspaceTree: { folders: allFolders, requests: allRequests },
     lastResponse,
   }
 }
@@ -45,7 +45,6 @@ function buildContext(store: ReturnType<typeof useWorkspaceStore.getState>, curr
 export function AIAssistant() {
   const { aiMessages, aiLoading, addAiMessage, setAiLoading, clearAiMessages, setAiPanelOpen } = useUIStore()
   const { currentExecution } = useUIStore()
-  const { activeWorkspaceId } = useWorkspaceStore()
 
   const [input, setInput] = useState('')
   const [pendingResponse, setPendingResponse] = useState<AIResponse | null>(null)
@@ -109,10 +108,6 @@ export function AIAssistant() {
         </div>
       </div>
 
-      {!activeWorkspaceId && (
-        <div className="p-3 text-xs text-gray-500 text-center">Open a workspace to use AI assistant</div>
-      )}
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {aiMessages.length === 0 && (
@@ -128,7 +123,7 @@ export function AIAssistant() {
               <p className="bg-gray-800 rounded px-2 py-1 cursor-pointer hover:bg-gray-700" onClick={() => setInput('Why did I get a 401 error?')}>
                 Troubleshoot a response error
               </p>
-              <p className="bg-gray-800 rounded px-2 py-1 cursor-pointer hover:bg-gray-700" onClick={() => setInput('Suggest environment variables for this workspace')}>
+              <p className="bg-gray-800 rounded px-2 py-1 cursor-pointer hover:bg-gray-700" onClick={() => setInput('Suggest environment variables for this project')}>
                 Suggest environment variables
               </p>
             </div>

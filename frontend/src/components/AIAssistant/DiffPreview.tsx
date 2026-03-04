@@ -10,15 +10,13 @@ interface Props {
 }
 
 export function DiffPreview({ response, onApply, onDismiss }: Props) {
-  const { activeWorkspaceId, createRequest, updateRequest, createFolder, updateEnvironment, environments, activeEnvironmentId } = useWorkspaceStore()
+  const { createRequest, updateRequest, createFolder, updateEnvironment, environments, activeEnvironmentId } = useWorkspaceStore()
 
   function applyOperation(op: AIOperation) {
-    if (!activeWorkspaceId) return
-
     switch (op.op) {
       case 'create_request':
         if (op.data) {
-          createRequest(activeWorkspaceId, op.data.name ?? 'New Request', op.data.folderId)
+          createRequest(op.data.name ?? 'New Request', op.data.folderId)
           const { requests } = useWorkspaceStore.getState()
           const newReq = requests[requests.length - 1]
           if (newReq && op.data) {
@@ -35,7 +33,7 @@ export function DiffPreview({ response, onApply, onDismiss }: Props) {
 
       case 'create_folder':
         if (op.data?.name) {
-          createFolder(activeWorkspaceId, op.data.name, op.data.folderId)
+          createFolder(op.data.name, op.data.folderId)
         }
         break
 

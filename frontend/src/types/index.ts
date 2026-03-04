@@ -34,16 +34,8 @@ export interface RequestSettings {
   timeout?: number
 }
 
-export interface Workspace {
-  id: string
-  name: string
-  createdAt: string
-  updatedAt: string
-}
-
 export interface Folder {
   id: string
-  workspaceId: string
   name: string
   parentId?: string
   sortOrder: number
@@ -51,7 +43,6 @@ export interface Folder {
 
 export interface Request {
   id: string
-  workspaceId: string
   folderId?: string
   name: string
   method: HttpMethod
@@ -66,7 +57,6 @@ export interface Request {
 
 export interface Environment {
   id: string
-  workspaceId: string
   name: string
   variables: Record<string, string>
   parentId?: string
@@ -116,10 +106,9 @@ export interface AIResponse {
   operations: AIOperation[]
 }
 
-export interface WorkspaceExport {
+export interface DataExport {
   version: '1'
   exportedAt: string
-  workspace: Workspace
   folders: Folder[]
   requests: Request[]
   environments: Environment[]

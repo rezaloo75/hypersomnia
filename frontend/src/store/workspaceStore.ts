@@ -1,24 +1,23 @@
 import { create } from 'zustand'
 import { v4 as uuid } from 'uuid'
 import type {
-  Workspace, Folder, Request, Environment, RequestExecution,
+  Folder, Request, Environment, RequestExecution,
   HttpMethod, KeyValuePair
 } from '../types'
 import { storage } from '../db/storage'
 import {
-  seedWorkspace, seedFolders, seedRequests, seedEnvironment,
+  seedFolders, seedRequests, seedEnvironment,
   SEED_ACTIVE_REQUEST_ID, SEED_ACTIVE_ENV_ID,
 } from '../db/seed'
 
-// Seed localStorage on first ever load (no existing workspaces)
+// Seed localStorage on first ever load (no existing folders or requests)
 function initStorage() {
-  const existing = storage.loadWorkspaces()
-  if (existing.length === 0) {
-    storage.saveWorkspaces([seedWorkspace])
+  const hasFolders = storage.loadFolders().length > 0
+  const hasRequests = storage.loadRequests().length > 0
+  if (!hasFolders && !hasRequests) {
     storage.saveFolders(seedFolders)
     storage.saveRequests(seedRequests)
     storage.saveEnvironments([seedEnvironment])
-    storage.saveActiveWorkspaceId(seedWorkspace.id)
     storage.saveActiveRequestId(SEED_ACTIVE_REQUEST_ID)
     storage.saveActiveEnvironmentId(SEED_ACTIVE_ENV_ID)
   }
@@ -28,35 +27,27 @@ initStorage()
 const MAX_HISTORY = 50
 
 interface WorkspaceState {
-  workspaces: Workspace[]
   folders: Folder[]
   requests: Request[]
   environments: Environment[]
   history: RequestExecution[]
-  activeWorkspaceId: string | null
   activeRequestId: string | null
   activeEnvironmentId: string | null
 
-  // Workspace CRUD
-  createWorkspace: (name: string) => Workspace
-  updateWorkspace: (id: string, patch: Partial<Workspace>) => void
-  deleteWorkspace: (id: string) => void
-  setActiveWorkspace: (id: string | null) => void
-
   // Folder CRUD
-  createFolder: (workspaceId: string, name: string, parentId?: string) => Folder
+  createFolder: (name: string, parentId?: string) => Folder
   updateFolder: (id: string, patch: Partial<Folder>) => void
   deleteFolder: (id: string) => void
 
   // Request CRUD
-  createRequest: (workspaceId: string, name: string, folderId?: string) => Request
+  createRequest: (name: string, folderId?: string) => Request
   updateRequest: (id: string, patch: Partial<Request>) => void
   deleteRequest: (id: string) => void
   setActiveRequest: (id: string | null) => void
   duplicateRequest: (id: string) => Request | null
 
   // Environment CRUD
-  createEnvironment: (workspaceId: string, name: string) => Environment
+  createEnvironment: (name: string) => Environment
   updateEnvironment: (id: string, patch: Partial<Environment>) => void
   deleteEnvironment: (id: string) => void
   setActiveEnvironment: (id: string | null) => void
@@ -67,18 +58,17 @@ interface WorkspaceState {
 
   // Import
   importWorkspaceData: (data: {
-    workspace: Workspace
     folders: Folder[]
     requests: Request[]
     environments: Environment[]
+    idPrefix?: string
   }) => void
-  importRequests: (workspaceId: string, folders: Partial<Folder>[], requests: Partial<Request>[]) => void
+  importRequests: (folders: Partial<Folder>[], requests: Partial<Request>[]) => void
 }
 
-function makeDefaultRequest(workspaceId: string, name: string, folderId?: string): Request {
+function makeDefaultRequest(name: string, folderId?: string): Request {
   return {
     id: uuid(),
-    workspaceId,
     folderId,
     name,
     method: 'GET' as HttpMethod,
@@ -93,56 +83,16 @@ function makeDefaultRequest(workspaceId: string, name: string, folderId?: string
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
-  workspaces: storage.loadWorkspaces(),
   folders: storage.loadFolders(),
   requests: storage.loadRequests(),
   environments: storage.loadEnvironments(),
   history: storage.loadHistory(),
-  activeWorkspaceId: storage.loadActiveWorkspaceId(),
   activeRequestId: storage.loadActiveRequestId(),
   activeEnvironmentId: storage.loadActiveEnvironmentId(),
 
-  // — Workspaces —
-  createWorkspace: (name) => {
-    const ws: Workspace = { id: uuid(), name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    set((s) => {
-      const workspaces = [...s.workspaces, ws]
-      storage.saveWorkspaces(workspaces)
-      storage.saveActiveWorkspaceId(ws.id)
-      return { workspaces, activeWorkspaceId: ws.id }
-    })
-    return ws
-  },
-
-  updateWorkspace: (id, patch) => set((s) => {
-    const workspaces = s.workspaces.map(w => w.id === id ? { ...w, ...patch, updatedAt: new Date().toISOString() } : w)
-    storage.saveWorkspaces(workspaces)
-    return { workspaces }
-  }),
-
-  deleteWorkspace: (id) => set((s) => {
-    const workspaces = s.workspaces.filter(w => w.id !== id)
-    const folders = s.folders.filter(f => f.workspaceId !== id)
-    const requests = s.requests.filter(r => r.workspaceId !== id)
-    const environments = s.environments.filter(e => e.workspaceId !== id)
-    const activeWorkspaceId = s.activeWorkspaceId === id ? (workspaces[0]?.id ?? null) : s.activeWorkspaceId
-    storage.saveWorkspaces(workspaces)
-    storage.saveFolders(folders)
-    storage.saveRequests(requests)
-    storage.saveEnvironments(environments)
-    storage.saveActiveWorkspaceId(activeWorkspaceId)
-    return { workspaces, folders, requests, environments, activeWorkspaceId }
-  }),
-
-  setActiveWorkspace: (id) => set(() => {
-    storage.saveActiveWorkspaceId(id)
-    storage.saveActiveRequestId(null)
-    return { activeWorkspaceId: id, activeRequestId: null }
-  }),
-
   // — Folders —
-  createFolder: (workspaceId, name, parentId) => {
-    const folder: Folder = { id: uuid(), workspaceId, name, parentId, sortOrder: Date.now() }
+  createFolder: (name, parentId) => {
+    const folder: Folder = { id: uuid(), name, parentId, sortOrder: Date.now() }
     set((s) => {
       const folders = [...s.folders, folder]
       storage.saveFolders(folders)
@@ -172,8 +122,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   }),
 
   // — Requests —
-  createRequest: (workspaceId, name, folderId) => {
-    const req = makeDefaultRequest(workspaceId, name, folderId)
+  createRequest: (name, folderId) => {
+    const req = makeDefaultRequest(name, folderId)
     set((s) => {
       const requests = [...s.requests, req]
       storage.saveRequests(requests)
@@ -216,8 +166,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   // — Environments —
-  createEnvironment: (workspaceId, name) => {
-    const env: Environment = { id: uuid(), workspaceId, name, variables: {} }
+  createEnvironment: (name) => {
+    const env: Environment = { id: uuid(), name, variables: {} }
     set((s) => {
       const environments = [...s.environments, env]
       storage.saveEnvironments(environments)
@@ -258,32 +208,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   }),
 
   // — Import —
-  importWorkspaceData: ({ workspace, folders, requests, environments }) => set((s) => {
-    const workspaces = [...s.workspaces.filter(w => w.id !== workspace.id), workspace]
-    const newFolders = [...s.folders.filter(f => f.workspaceId !== workspace.id), ...folders]
-    const newRequests = [...s.requests.filter(r => r.workspaceId !== workspace.id), ...requests]
-    const newEnvironments = [...s.environments.filter(e => e.workspaceId !== workspace.id), ...environments]
-    storage.saveWorkspaces(workspaces)
+  importWorkspaceData: ({ folders, requests, environments, idPrefix }) => set((s) => {
+    const baseFolders = idPrefix ? s.folders.filter(f => !f.id.startsWith(idPrefix)) : s.folders
+    const baseRequests = idPrefix ? s.requests.filter(r => !r.id.startsWith(idPrefix)) : s.requests
+    const baseEnvironments = idPrefix ? s.environments.filter(e => !e.id.startsWith(idPrefix)) : s.environments
+
+    const folderMap = new Map([...baseFolders, ...folders].map(f => [f.id, f]))
+    const requestMap = new Map([...baseRequests, ...requests].map(r => [r.id, r]))
+    const envMap = new Map([...baseEnvironments, ...environments].map(e => [e.id, e]))
+
+    const newFolders = [...folderMap.values()]
+    const newRequests = [...requestMap.values()]
+    const newEnvironments = [...envMap.values()]
     storage.saveFolders(newFolders)
     storage.saveRequests(newRequests)
     storage.saveEnvironments(newEnvironments)
-    storage.saveActiveWorkspaceId(workspace.id)
-    return { workspaces, folders: newFolders, requests: newRequests, environments: newEnvironments, activeWorkspaceId: workspace.id }
+    return { folders: newFolders, requests: newRequests, environments: newEnvironments }
   }),
 
-  importRequests: (workspaceId, partialFolders, partialRequests) => set((s) => {
+  importRequests: (partialFolders, partialRequests) => set((s) => {
     const newFolders: Folder[] = partialFolders.map(f => ({
       id: f.id ?? uuid(),
-      workspaceId,
       name: f.name ?? 'Unnamed',
       parentId: f.parentId,
       sortOrder: f.sortOrder ?? Date.now(),
     }))
     const newRequests: Request[] = partialRequests.map(r => ({
-      ...makeDefaultRequest(workspaceId, r.name ?? 'Unnamed', r.folderId),
+      ...makeDefaultRequest(r.name ?? 'Unnamed', r.folderId),
       ...r,
       id: r.id ?? uuid(),
-      workspaceId,
     }))
     const folders = [...s.folders, ...newFolders]
     const requests = [...s.requests, ...newRequests]

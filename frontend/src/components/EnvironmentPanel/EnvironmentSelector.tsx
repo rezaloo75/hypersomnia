@@ -3,16 +3,11 @@ import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { EnvironmentEditor } from './EnvironmentEditor'
 
-interface Props {
-  workspaceId: string
-}
-
-export function EnvironmentSelector({ workspaceId }: Props) {
+export function EnvironmentSelector() {
   const { environments, activeEnvironmentId, createEnvironment, setActiveEnvironment, deleteEnvironment } = useWorkspaceStore()
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  const wsEnvs = environments.filter(e => e.workspaceId === workspaceId)
-  const activeEnv = wsEnvs.find(e => e.id === activeEnvironmentId)
+  const activeEnv = environments.find(e => e.id === activeEnvironmentId)
 
   return (
     <div>
@@ -24,7 +19,7 @@ export function EnvironmentSelector({ workspaceId }: Props) {
           onChange={e => setActiveEnvironment(e.target.value || null)}
         >
           <option value="">No environment</option>
-          {wsEnvs.map(e => (
+          {environments.map(e => (
             <option key={e.id} value={e.id}>{e.name}</option>
           ))}
         </select>
@@ -34,7 +29,7 @@ export function EnvironmentSelector({ workspaceId }: Props) {
           onClick={() => {
             const name = prompt('Environment name:')
             if (name?.trim()) {
-              const env = createEnvironment(workspaceId, name.trim())
+              const env = createEnvironment(name.trim())
               setActiveEnvironment(env.id)
               setEditingId(env.id)
             }
@@ -56,7 +51,7 @@ export function EnvironmentSelector({ workspaceId }: Props) {
         )}
       </div>
 
-      {editingId && wsEnvs.find(e => e.id === editingId) && (
+      {editingId && environments.find(e => e.id === editingId) && (
         <div className="mt-2">
           <EnvironmentEditor
             environmentId={editingId}

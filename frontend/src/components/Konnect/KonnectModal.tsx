@@ -12,10 +12,9 @@ import {
   REGION_LABELS,
   type KonnectRegion,
 } from '../../utils/konnectApi'
-import type { Folder, Request, Environment, Workspace } from '../../types'
+import type { Folder, Request, Environment } from '../../types'
 
 const REGIONS = Object.keys(REGION_LABELS) as KonnectRegion[]
-const KONNECT_WS_ID = 'konnect-workspace'
 
 /**
  * Kong route paths can be regex patterns prefixed with `~`.
@@ -107,19 +106,12 @@ export function KonnectModal({ onClose }: Props) {
     // Snapshot existing Konnect environments so we can preserve manually-set baseUrls
     const existingEnvs = new Map(
       useWorkspaceStore.getState().environments
-        .filter(e => e.workspaceId === KONNECT_WS_ID)
+        .filter(e => e.id.startsWith('konnect-env-'))
         .map(e => [e.id, e.variables])
     )
 
     try {
       const cps = await listControlPlanes(token, region)
-
-      const workspace: Workspace = {
-        id: KONNECT_WS_ID,
-        name: 'Konnect',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
 
       const environments: Environment[] = []
       const folders: Folder[] = []
@@ -148,7 +140,6 @@ export function KonnectModal({ onClose }: Props) {
         if (!baseUrl) missingBaseUrl.push(cp.name)
         environments.push({
           id: envId,
-          workspaceId: KONNECT_WS_ID,
           name: cp.name,
           variables: { baseUrl },
         })
@@ -157,7 +148,6 @@ export function KonnectModal({ onClose }: Props) {
         const cpFolderId = `konnect-cp-${cp.id}`
         folders.push({
           id: cpFolderId,
-          workspaceId: KONNECT_WS_ID,
           name: cp.name,
           sortOrder: i,
         })
@@ -189,7 +179,6 @@ export function KonnectModal({ onClose }: Props) {
 
           folders.push({
             id: svcFolderId,
-            workspaceId: KONNECT_WS_ID,
             name: folderName,
             parentId: cpFolderId,
             sortOrder: svcSortOrder++,
@@ -203,7 +192,6 @@ export function KonnectModal({ onClose }: Props) {
 
             requests.push({
               id: `konnect-route-${route.id}`,
-              workspaceId: KONNECT_WS_ID,
               folderId: svcFolderId,
               name,
               method: method as Request['method'],
@@ -222,7 +210,7 @@ export function KonnectModal({ onClose }: Props) {
 
       setProgress({ current: '', done: cps.length, total: cps.length })
 
-      importWorkspaceData({ workspace, folders, requests, environments })
+      importWorkspaceData({ folders, requests, environments, idPrefix: 'konnect-' })
 
       // Auto-select the first CP's environment so {{baseUrl}} resolves immediately
       if (environments.length > 0) {
@@ -416,8 +404,7 @@ export function KonnectModal({ onClose }: Props) {
                 <span>
                   Synced <strong>{result.controlPlanes}</strong> control planes →{' '}
                   <strong>{result.environments}</strong> environments,{' '}
-                  <strong>{result.requests}</strong> requests imported into the{' '}
-                  <strong>Konnect</strong> workspace.
+                  <strong>{result.requests}</strong> requests imported.
                 </span>
               </div>
               {result.missingBaseUrl.length > 0 && (
