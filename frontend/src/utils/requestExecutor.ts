@@ -57,13 +57,88 @@ function resolveAll(request: Request, variables: Record<string, string>): {
   return { url, headers, body }
 }
 
+/** Returns true for localhost / 127.0.0.1 / ::1 targets. */
+function isLocalUrl(url: string): boolean {
+  const normalized = /^https?:\/\//i.test(url) ? url : `http://${url}`
+  try {
+    const { hostname } = new URL(normalized)
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+  } catch {
+    return false
+  }
+}
+
+/** Send directly from the browser — used for local URLs that the relay can't reach. */
+async function executeDirectly(
+  request: Request,
+  url: string,
+  headers: Record<string, string>,
+  body: string | undefined,
+  startTime: number,
+): Promise<RequestExecution> {
+  const fullUrl = /^https?:\/\//i.test(url) ? url : `http://${url}`
+
+  try {
+    const res = await fetch(fullUrl, {
+      method: request.method,
+      headers,
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : body,
+    })
+
+    const responseBody = await res.text()
+    const responseHeaders: Record<string, string> = {}
+    res.headers.forEach((value, key) => { responseHeaders[key] = value })
+
+    const time = Date.now() - startTime
+    const size = new TextEncoder().encode(responseBody).length
+
+    const response: ResponseData = {
+      status: res.status,
+      statusText: res.statusText,
+      headers: responseHeaders,
+      body: responseBody,
+      time,
+      size,
+    }
+
+    return {
+      id: uuid(),
+      requestId: request.id,
+      requestName: request.name,
+      timestamp: new Date().toISOString(),
+      request: { method: request.method, url: fullUrl, headers, body },
+      response,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Network error'
+    // "Failed to fetch" is the browser's generic CORS / connection-refused error
+    const hint = msg.toLowerCase().includes('failed to fetch')
+      ? `${msg}\n\nCould not reach ${fullUrl}. Make sure:\n1. Your local server is running\n2. It allows CORS from this origin:\n   Access-Control-Allow-Origin: *`
+      : msg
+
+    return {
+      id: uuid(),
+      requestId: request.id,
+      requestName: request.name,
+      timestamp: new Date().toISOString(),
+      request: { method: request.method, url: fullUrl, headers },
+      response: { status: 0, statusText: 'Network Error', headers: {}, body: hint, time: Date.now() - startTime, size: 0 },
+      error: msg,
+    }
+  }
+}
+
 export async function executeRequest(
   request: Request,
   variables: Record<string, string>
 ): Promise<RequestExecution> {
   const { url, headers, body } = resolveAll(request, variables)
-
   const startTime = Date.now()
+
+  // Local URLs can't go through the Railway relay — send directly from the browser
+  if (isLocalUrl(url)) {
+    return executeDirectly(request, url, headers, body, startTime)
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/relay`, {
