@@ -11,7 +11,7 @@ export function EnvironmentSelector() {
 
   return (
     <div>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <span className="text-xs text-gray-500 flex-shrink-0">Env:</span>
         <div className="flex-1 min-w-0">
           <select
