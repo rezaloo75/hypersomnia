@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { InboxIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
 import { StatusBadge } from './StatusBadge'
@@ -5,11 +6,22 @@ import { BodyViewer } from './BodyViewer'
 import { HeadersViewer } from './HeadersViewer'
 import { DebugViewer } from './DebugViewer'
 import { HistoryPanel } from './HistoryPanel'
+import { KongDebugViewer } from './KongDebugViewer'
 
-type Tab = 'body' | 'headers' | 'debug'
+const KONG_DEBUG_HEADER = 'x-kong-request-debug-output'
+const NEON = '#6fdc0e'
 
 export function ResponseViewer() {
   const { currentExecution, activeResponseTab, setActiveResponseTab } = useUIStore()
+
+  const kongDebugHeader = currentExecution?.response.headers?.[KONG_DEBUG_HEADER]
+
+  // If on kong tab but new response has no debug header, fall back to body
+  useEffect(() => {
+    if (activeResponseTab === 'kong' && !kongDebugHeader) {
+      setActiveResponseTab('body')
+    }
+  }, [currentExecution, kongDebugHeader, activeResponseTab, setActiveResponseTab])
 
   if (!currentExecution) {
     return (
@@ -28,7 +40,6 @@ export function ResponseViewer() {
   }
 
   const { response, error } = currentExecution
-  const tabs: Tab[] = ['body', 'headers', 'debug']
 
   return (
     <div className="flex flex-col h-full">
@@ -53,7 +64,7 @@ export function ResponseViewer() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 flex-shrink-0 bg-gray-950">
-        {tabs.map(tab => (
+        {(['body', 'headers', 'debug'] as const).map(tab => (
           <button
             key={tab}
             className={`tab-btn capitalize ${activeResponseTab === tab ? 'tab-btn-active' : 'tab-btn-inactive'}`}
@@ -65,6 +76,15 @@ export function ResponseViewer() {
             )}
           </button>
         ))}
+        {kongDebugHeader && (
+          <button
+            className={`tab-btn ${activeResponseTab === 'kong' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+            onClick={() => setActiveResponseTab('kong')}
+            style={activeResponseTab === 'kong' ? { color: NEON, borderBottomColor: NEON } : { color: NEON, opacity: 0.6 }}
+          >
+            Kong
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -72,6 +92,7 @@ export function ResponseViewer() {
         {activeResponseTab === 'body' && <BodyViewer execution={currentExecution} />}
         {activeResponseTab === 'headers' && <HeadersViewer headers={response.headers} />}
         {activeResponseTab === 'debug' && <DebugViewer execution={currentExecution} />}
+        {activeResponseTab === 'kong' && kongDebugHeader && <KongDebugViewer header={kongDebugHeader} />}
       </div>
     </div>
   )
