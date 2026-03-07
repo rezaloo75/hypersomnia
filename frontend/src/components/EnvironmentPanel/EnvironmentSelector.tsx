@@ -13,16 +13,18 @@ export function EnvironmentSelector() {
     <div>
       <div className="flex items-center gap-1">
         <span className="text-xs text-gray-500 flex-shrink-0">Env:</span>
-        <select
-          className="input-base flex-1 text-xs py-1"
-          value={activeEnvironmentId ?? ''}
-          onChange={e => setActiveEnvironment(e.target.value || null)}
-        >
-          <option value="">No environment</option>
-          {environments.map(e => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-        </select>
+        <div className="flex-1 min-w-0">
+          <select
+            className="input-base w-full text-xs py-1"
+            value={activeEnvironmentId ?? ''}
+            onChange={e => setActiveEnvironment(e.target.value || null)}
+          >
+            <option value="">No environment</option>
+            {environments.map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        </div>
         <button
           className="btn-ghost text-xs px-1.5"
           title="New environment"
