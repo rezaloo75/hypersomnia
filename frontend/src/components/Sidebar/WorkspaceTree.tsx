@@ -39,7 +39,7 @@ export function WorkspaceTree() {
       {/* Actions */}
       <div className="flex flex-col gap-1.5 px-2 mb-2">
         <button
-          className="btn-primary flex items-center justify-center gap-1.5 py-1.5 text-xs w-full"
+          className="btn-secondary flex items-center justify-center gap-1.5 py-1.5 text-xs w-full"
           title="New Request"
           onClick={() => {
             const name = prompt('Request name:') ?? 'New Request'
@@ -102,7 +102,7 @@ export function WorkspaceTree() {
         <div className="flex flex-col items-center justify-center px-4 py-8 gap-4">
           <p className="text-xs text-gray-500 text-center">No requests yet. Create your first request to get started.</p>
           <button
-            className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
+            className="btn-secondary text-xs px-4 py-2 flex items-center gap-1.5"
             onClick={() => {
               const name = prompt('Request name:') ?? 'New Request'
               createRequest(name.trim() || 'New Request')
