@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 
 const NEON = '#6fdc0e'
-const TRACK = 'rgba(111,220,14,0.07)'
 const PHASE_ORDER = ['rewrite', 'access', 'balancer', 'upstream', 'header_filter', 'body_filter', 'log']
 
 type DebugNode = {
@@ -19,6 +18,13 @@ type DebugOutput = {
 
 interface Props {
   header: string
+}
+
+type RowData = {
+  name: string
+  node: DebugNode
+  depth: number
+  startMs: number
 }
 
 function isUUID(s: string) {
@@ -44,6 +50,30 @@ function sortedEntries(obj: Record<string, DebugNode>): [string, DebugNode][] {
   })
 }
 
+function buildRows(entries: [string, DebugNode][], offset: number, depth: number): RowData[] {
+  const rows: RowData[] = []
+  let cursor = offset
+  for (const [name, node] of entries) {
+    rows.push({ name, node, depth, startMs: cursor })
+    if (node.child) {
+      rows.push(...buildRows(sortedEntries(node.child), cursor, depth + 1))
+    }
+    cursor += node.total_time ?? 0
+  }
+  return rows
+}
+
+/** Pick 4–5 nice round tick values spanning 0..totalMs */
+function niceTicks(totalMs: number): number[] {
+  const target = 4
+  const raw = totalMs / target
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
+  const step = [1, 2, 5, 10].map(f => f * mag).find(f => f >= raw) ?? raw
+  const ticks: number[] = []
+  for (let t = 0; t <= totalMs + step * 0.01; t += step) ticks.push(parseFloat(t.toFixed(6)))
+  return ticks
+}
+
 export function KongDebugViewer({ header }: Props) {
   const data = useMemo<DebugOutput | null>(() => {
     try { return JSON.parse(header) as DebugOutput }
@@ -54,12 +84,16 @@ export function KongDebugViewer({ header }: Props) {
     return <div className="p-4 text-xs text-gray-500">Could not parse Kong debug output.</div>
   }
 
-  const totalTime = Object.values(data.child).reduce((s, n) => s + (n.total_time ?? 0), 0)
   const phases = sortedEntries(data.child)
+  const totalTime = phases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
+  const rows = buildRows(phases, 0, 0)
+  const ticks = niceTicks(totalTime)
+
+  const pct = (ms: number) => totalTime > 0 ? (ms / totalTime) * 100 : 0
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 font-mono text-xs">
-      {/* Summary bar */}
+      {/* Summary */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-5">
         <span className="font-bold text-sm tracking-wide" style={{ color: NEON }}>
           Kong Gateway Trace
@@ -76,114 +110,126 @@ export function KongDebugViewer({ header }: Props) {
           </span>
         )}
         <span className="text-gray-500">
-          total incl. upstream:{' '}
+          total:{' '}
           <span className="text-gray-300">{fmtTime(totalTime)}</span>
         </span>
       </div>
 
-      {/* Column header */}
-      <div className="flex items-center gap-2 mb-1 pb-1 border-b border-gray-800">
+      {/* Header row: name col + time ruler + time label col */}
+      <div className="flex items-end gap-2 mb-1 pb-1 border-b border-gray-800">
         <div className="flex-shrink-0 text-gray-600" style={{ width: 196 }}>Phase / Action</div>
-        <div className="flex-1" />
+        {/* Ruler */}
+        <div className="flex-1 relative" style={{ height: 20 }}>
+          {ticks.map(t => (
+            <span
+              key={t}
+              className="absolute bottom-0 text-gray-600 select-none"
+              style={{ left: `${pct(t)}%`, transform: 'translateX(-50%)', fontSize: 10 }}
+            >
+              {t === 0 ? '0' : fmtTime(t)}
+            </span>
+          ))}
+          {/* tick lines */}
+          {ticks.map(t => (
+            <span
+              key={`line-${t}`}
+              className="absolute bottom-0"
+              style={{
+                left: `${pct(t)}%`,
+                width: 1,
+                height: 5,
+                background: 'rgba(255,255,255,0.12)',
+              }}
+            />
+          ))}
+        </div>
         <div className="flex-shrink-0 w-16 text-right text-gray-600">Time</div>
       </div>
 
-      {/* Waterfall rows */}
+      {/* Pathway rows */}
       <div>
-        {phases.map(([name, node]) => (
-          <Row key={name} name={name} node={node} totalTime={totalTime} depth={0} />
-        ))}
+        {rows.map((row, i) => {
+          const duration = row.node.total_time
+          const isPhase = row.depth === 0
+          const barH = isPhase ? 16 : row.depth === 1 ? 11 : 8
+          const barAlpha = isPhase ? 1 : Math.max(0.3, 0.7 - (row.depth - 1) * 0.15)
+          const nameColor = isPhase ? NEON : row.depth === 1 ? '#d1d5db' : '#9ca3af'
+          const extras = Object.entries(row.node).filter(([k]) => k !== 'total_time' && k !== 'child')
+          const leftPct = pct(row.startMs)
+          const widthPct = duration != null && totalTime > 0 ? pct(duration) : 0
+
+          return (
+            <div
+              key={i}
+              className="flex items-center gap-2"
+              style={{ marginTop: isPhase ? 10 : 2 }}
+            >
+              {/* Name */}
+              <div
+                className="flex-shrink-0 flex items-center gap-1.5 overflow-hidden"
+                style={{ width: 196, paddingLeft: row.depth * 14 }}
+              >
+                <span
+                  className="truncate"
+                  style={{
+                    color: nameColor,
+                    fontWeight: isPhase ? 700 : 400,
+                    textTransform: isPhase ? 'uppercase' : 'none',
+                    letterSpacing: isPhase ? '0.07em' : 0,
+                  }}
+                  title={row.name}
+                >
+                  {labelFor(row.name)}
+                </span>
+                {extras.map(([k, v]) => (
+                  <span
+                    key={k}
+                    className="flex-shrink-0 px-1 rounded text-[10px]"
+                    style={{
+                      color: v === false ? '#f87171' : v === true ? NEON : '#6b7280',
+                      background: 'rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    {k}:{String(v)}
+                  </span>
+                ))}
+              </div>
+
+              {/* Pathway bar — absolutely positioned on shared timeline */}
+              <div className="flex-1 relative" style={{ height: barH }}>
+                {/* faint track for phase rows */}
+                {isPhase && (
+                  <div
+                    className="absolute inset-0 rounded-sm"
+                    style={{ background: 'rgba(111,220,14,0.05)' }}
+                  />
+                )}
+                {duration != null && (
+                  <div
+                    className="absolute h-full rounded-sm"
+                    style={{
+                      left: `${leftPct}%`,
+                      width: widthPct > 0 ? `${widthPct}%` : undefined,
+                      minWidth: 2,
+                      background: NEON,
+                      opacity: barAlpha,
+                    }}
+                    title={duration != null ? fmtTime(duration) : undefined}
+                  />
+                )}
+              </div>
+
+              {/* Duration */}
+              <span
+                className="flex-shrink-0 w-16 text-right tabular-nums"
+                style={{ color: isPhase ? NEON : '#6b7280' }}
+              >
+                {duration != null ? fmtTime(duration) : '—'}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
-  )
-}
-
-function Row({
-  name, node, totalTime, depth,
-}: {
-  name: string
-  node: DebugNode
-  totalTime: number
-  depth: number
-}) {
-  const time = node.total_time
-  const extras = Object.entries(node).filter(([k]) => k !== 'total_time' && k !== 'child')
-  const children = node.child ? sortedEntries(node.child) : null
-
-  const isPhase = depth === 0
-  const barPct = totalTime > 0 && time != null ? Math.max(0.4, (time / totalTime) * 100) : 0
-  const barH = isPhase ? 18 : depth === 1 ? 12 : 8
-  const barAlpha = isPhase ? 0.9 : Math.max(0.25, 0.65 - (depth - 1) * 0.15)
-  const nameColor = isPhase ? NEON : depth === 1 ? '#d1d5db' : '#9ca3af'
-
-  return (
-    <>
-      <div
-        className="flex items-center gap-2"
-        style={{ marginTop: isPhase ? 12 : 3 }}
-      >
-        {/* Name — fixed 196px, indented by depth */}
-        <div
-          className="flex-shrink-0 flex items-center gap-1.5 overflow-hidden"
-          style={{ width: 196, paddingLeft: depth * 14 }}
-        >
-          <span
-            className="truncate"
-            style={{
-              color: nameColor,
-              fontWeight: isPhase ? 700 : 400,
-              textTransform: isPhase ? 'uppercase' : 'none',
-              letterSpacing: isPhase ? '0.07em' : 0,
-            }}
-            title={name}
-          >
-            {labelFor(name)}
-          </span>
-          {extras.map(([k, v]) => (
-            <span
-              key={k}
-              className="flex-shrink-0 px-1 rounded text-[10px]"
-              style={{
-                color: v === false ? '#f87171' : v === true ? NEON : '#6b7280',
-                background: 'rgba(255,255,255,0.05)',
-              }}
-            >
-              {k}:{String(v)}
-            </span>
-          ))}
-        </div>
-
-        {/* Bar + time */}
-        <div className="flex-1 flex items-center gap-2">
-          <div
-            className="flex-1 rounded-sm overflow-hidden"
-            style={{ height: barH, background: TRACK }}
-          >
-            {time != null && barPct > 0 && (
-              <div
-                className="h-full rounded-sm transition-all"
-                style={{ width: `${barPct}%`, background: NEON, opacity: barAlpha }}
-              />
-            )}
-          </div>
-          <span
-            className="flex-shrink-0 w-16 text-right tabular-nums"
-            style={{ color: isPhase ? NEON : '#6b7280' }}
-          >
-            {time != null ? fmtTime(time) : '—'}
-          </span>
-        </div>
-      </div>
-
-      {children?.map(([childName, childNode]) => (
-        <Row
-          key={childName}
-          name={childName}
-          node={childNode}
-          totalTime={totalTime}
-          depth={depth + 1}
-        />
-      ))}
-    </>
   )
 }
