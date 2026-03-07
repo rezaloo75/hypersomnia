@@ -84,12 +84,18 @@ export function KongDebugViewer({ header }: Props) {
     return <div className="p-4 text-xs text-gray-500">Could not parse Kong debug output.</div>
   }
 
-  const phases = sortedEntries(data.child)
-  const totalTime = phases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
-  const rows = buildRows(phases, 0, 0)
-  const ticks = niceTicks(totalTime)
+  const allPhases = sortedEntries(data.child)
+  const upstreamTime = data.child['upstream']?.total_time ?? null
+  const totalTime = allPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
 
-  const pct = (ms: number) => totalTime > 0 ? (ms / totalTime) * 100 : 0
+  // Exclude upstream from the chart — it overwhelms gateway phases
+  const gatewayPhases = allPhases.filter(([name]) => name !== 'upstream')
+  const gatewayTime = data.total_time_without_upstream
+    ?? gatewayPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
+  const rows = buildRows(gatewayPhases, 0, 0)
+  const ticks = niceTicks(gatewayTime)
+
+  const pct = (ms: number) => gatewayTime > 0 ? (ms / gatewayTime) * 100 : 0
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 font-mono text-xs">
@@ -101,14 +107,16 @@ export function KongDebugViewer({ header }: Props) {
         {data.request_id && (
           <span className="text-gray-600">id:{data.request_id}</span>
         )}
-        {data.total_time_without_upstream != null && (
+        {upstreamTime != null && (
           <span className="text-gray-500">
-            gateway overhead:{' '}
-            <span style={{ color: NEON }} className="font-semibold">
-              {fmtTime(data.total_time_without_upstream)}
-            </span>
+            upstream:{' '}
+            <span className="text-gray-300">{fmtTime(upstreamTime)}</span>
           </span>
         )}
+        <span className="text-gray-500">
+          gateway overhead:{' '}
+          <span style={{ color: NEON }} className="font-semibold">{fmtTime(gatewayTime)}</span>
+        </span>
         <span className="text-gray-500">
           total:{' '}
           <span className="text-gray-300">{fmtTime(totalTime)}</span>
