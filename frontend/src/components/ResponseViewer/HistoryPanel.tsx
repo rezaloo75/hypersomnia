@@ -22,9 +22,9 @@ export function HistoryPanel() {
   }
 
   return (
-    <div className="bg-gray-950">
+    <div className="bg-gray-950 h-full flex flex-col">
       <div
-        className="flex items-center justify-between px-3 py-2 border-b border-gray-800 cursor-pointer select-none hover:bg-gray-900 transition-colors"
+        className="flex items-center justify-between px-3 py-2 border-b border-gray-800 cursor-pointer select-none hover:bg-gray-900 transition-colors flex-shrink-0"
         onClick={() => setCollapsed(v => !v)}
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
@@ -43,7 +43,7 @@ export function HistoryPanel() {
           </button>
         )}
       </div>
-      {!collapsed && <div className="max-h-56 overflow-y-auto">
+      {!collapsed && <div className="flex-1 overflow-y-auto">
         {history.map(entry => (
         <div
           key={entry.id}

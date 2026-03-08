@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { InboxIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
 import { StatusBadge } from './StatusBadge'
@@ -13,6 +13,26 @@ const NEON = '#6fdc0e'
 
 export function ResponseViewer() {
   const { currentExecution, activeResponseTab, setActiveResponseTab } = useUIStore()
+  const [historyHeight, setHistoryHeight] = useState(180)
+  const dragRef = useRef(false)
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragRef.current = true
+    const startY = e.clientY
+    const startH = historyHeight
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return
+      setHistoryHeight(Math.max(36, Math.min(500, startH + (ev.clientY - startY))))
+    }
+    const onUp = () => {
+      dragRef.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [historyHeight])
 
   const kongDebugHeader = currentExecution?.response.headers?.[KONG_DEBUG_HEADER]
 
@@ -26,9 +46,13 @@ export function ResponseViewer() {
   if (!currentExecution) {
     return (
       <div className="flex flex-col h-full">
-        <div className="border-b border-gray-800 flex-shrink-0">
+        <div className="flex-shrink-0 overflow-hidden" style={{ height: historyHeight }}>
           <HistoryPanel />
         </div>
+        <div
+          className="h-1 bg-gray-800 hover:bg-indigo-500 cursor-row-resize transition-colors flex-shrink-0"
+          onMouseDown={handleDividerMouseDown}
+        />
         <div className="flex items-center justify-center flex-1 text-gray-600">
           <div className="text-center">
             <InboxIcon className="w-10 h-10 mb-2 mx-auto text-gray-700" />
@@ -43,10 +67,16 @@ export function ResponseViewer() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* History always visible */}
-      <div className="border-b border-gray-800 flex-shrink-0">
+      {/* History panel */}
+      <div className="flex-shrink-0 overflow-hidden" style={{ height: historyHeight }}>
         <HistoryPanel />
       </div>
+
+      {/* Draggable divider */}
+      <div
+        className="h-1 bg-gray-800 hover:bg-indigo-500 cursor-row-resize transition-colors flex-shrink-0"
+        onMouseDown={handleDividerMouseDown}
+      />
 
       {/* Status bar */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800 flex-shrink-0">
