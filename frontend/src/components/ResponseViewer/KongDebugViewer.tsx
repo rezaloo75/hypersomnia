@@ -187,11 +187,11 @@ export function KongDebugViewer({ header }: Props) {
             >
               {/* Name */}
               <div
-                className="flex-shrink-0 flex items-center gap-1.5 overflow-hidden"
+                className="flex-shrink-0 flex items-center gap-1.5"
                 style={{ width: 196, paddingLeft: row.depth * 14 }}
               >
                 <span
-                  className="truncate"
+                  className="truncate min-w-0 flex-1"
                   style={{
                     color: nameColor,
                     fontWeight: isPhase ? 700 : 400,
