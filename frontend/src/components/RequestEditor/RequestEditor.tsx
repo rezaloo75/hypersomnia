@@ -14,7 +14,7 @@ type Tab = 'params' | 'headers' | 'auth' | 'body'
 
 export function RequestEditor() {
   const { requests, environments, activeRequestId, activeEnvironmentId, addHistory, updateRequest } = useWorkspaceStore()
-  const { setSending, setCurrentExecution, setActiveResponseTab } = useUIStore()
+  const { setSending, setCurrentExecution } = useUIStore()
   const [activeTab, setActiveTab] = useState<Tab>('params')
   const [copied, setCopied] = useState(false)
 
@@ -29,7 +29,6 @@ export function RequestEditor() {
       const execution = await executeRequest(request, variables)
       addHistory(execution)
       setCurrentExecution(execution)
-      setActiveResponseTab('body')
     } finally {
       setSending(false)
     }
