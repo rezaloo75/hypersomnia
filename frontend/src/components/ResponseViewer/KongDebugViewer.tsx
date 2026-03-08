@@ -20,11 +20,14 @@ interface Props {
   header: string
 }
 
+type UUIDInstance = { id: string; time: number }
+
 type RowData = {
   name: string
   node: DebugNode
   depth: number
   startMs: number
+  uuidInstances?: UUIDInstance[]
 }
 
 function isUUID(s: string) {
@@ -32,7 +35,6 @@ function isUUID(s: string) {
 }
 
 function labelFor(name: string): string {
-  if (isUUID(name)) return name.slice(0, 8) + '…'
   return name.replace(/_/g, ' ')
 }
 
@@ -54,9 +56,19 @@ function buildRows(entries: [string, DebugNode][], offset: number, depth: number
   const rows: RowData[] = []
   let cursor = offset
   for (const [name, node] of entries) {
-    rows.push({ name, node, depth, startMs: cursor })
+    const uuidInstances: UUIDInstance[] = []
+    const namedChildren: [string, DebugNode][] = []
+
     if (node.child) {
-      rows.push(...buildRows(sortedEntries(node.child), cursor, depth + 1))
+      for (const [k, v] of sortedEntries(node.child)) {
+        if (isUUID(k)) uuidInstances.push({ id: k, time: v.total_time ?? 0 })
+        else namedChildren.push([k, v])
+      }
+    }
+
+    rows.push({ name, node, depth, startMs: cursor, uuidInstances: uuidInstances.length ? uuidInstances : undefined })
+    if (namedChildren.length) {
+      rows.push(...buildRows(namedChildren, cursor, depth + 1))
     }
     cursor += node.total_time ?? 0
   }
@@ -163,6 +175,7 @@ export function KongDebugViewer({ header }: Props) {
           const barAlpha = isPhase ? 1 : Math.max(0.3, 0.7 - (row.depth - 1) * 0.15)
           const nameColor = isPhase ? NEON : row.depth === 1 ? '#d1d5db' : '#9ca3af'
           const extras = Object.entries(row.node).filter(([k]) => k !== 'total_time' && k !== 'child')
+          const { uuidInstances } = row
           const leftPct = pct(row.startMs)
           const widthPct = duration != null && totalTime > 0 ? pct(duration) : 0
 
@@ -201,6 +214,25 @@ export function KongDebugViewer({ header }: Props) {
                     {k}:{String(v)}
                   </span>
                 ))}
+                {uuidInstances && (
+                  <span className="relative group flex-shrink-0">
+                    <span
+                      className="px-1 rounded text-[10px] cursor-default select-none"
+                      style={{ color: '#6b7280', background: 'rgba(255,255,255,0.05)' }}
+                    >
+                      {uuidInstances.length}×
+                    </span>
+                    {/* Hover tooltip */}
+                    <span className="pointer-events-none absolute left-0 top-full mt-1 z-50 hidden group-hover:flex flex-col gap-0.5 rounded border border-gray-700 bg-gray-900 px-2 py-1.5 shadow-lg whitespace-nowrap">
+                      {uuidInstances.map(({ id, time }) => (
+                        <span key={id} className="flex items-center gap-2 text-[10px]">
+                          <span className="text-gray-500 font-mono">{id}</span>
+                          <span style={{ color: NEON }}>{fmtTime(time)}</span>
+                        </span>
+                      ))}
+                    </span>
+                  </span>
+                )}
               </div>
 
               {/* Pathway bar — absolutely positioned on shared timeline */}
