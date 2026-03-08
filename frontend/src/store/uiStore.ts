@@ -44,10 +44,10 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   sidebarWidth: 260,
-  aiPanelOpen: true,
+  aiPanelOpen: localStorage.getItem('hs_aiPanelOpen') !== 'false',
   setSidebarWidth: (w) => set({ sidebarWidth: w }),
-  setAiPanelOpen: (open) => set({ aiPanelOpen: open }),
-  toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
+  setAiPanelOpen: (open) => { localStorage.setItem('hs_aiPanelOpen', String(open)); set({ aiPanelOpen: open }) },
+  toggleAiPanel: () => set((s) => { const next = !s.aiPanelOpen; localStorage.setItem('hs_aiPanelOpen', String(next)); return { aiPanelOpen: next } }),
 
   activeResponseTab: 'body',
   bodyFormat: 'pretty',
