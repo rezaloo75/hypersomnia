@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 const NEON = '#6fdc0e'
 const PHASE_ORDER = ['rewrite', 'access', 'balancer', 'upstream', 'header_filter', 'body_filter', 'log']
@@ -214,25 +214,7 @@ export function KongDebugViewer({ header }: Props) {
                     {k}:{String(v)}
                   </span>
                 ))}
-                {uuidInstances && (
-                  <span className="relative group flex-shrink-0">
-                    <span
-                      className="px-1 rounded text-[10px] cursor-default select-none"
-                      style={{ color: '#6b7280', background: 'rgba(255,255,255,0.05)' }}
-                    >
-                      {uuidInstances.length}×
-                    </span>
-                    {/* Hover tooltip */}
-                    <span className="pointer-events-none absolute left-0 top-full mt-1 z-50 hidden group-hover:flex flex-col gap-0.5 rounded border border-gray-700 bg-gray-900 px-2 py-1.5 shadow-lg whitespace-nowrap">
-                      {uuidInstances.map(({ id, time }) => (
-                        <span key={id} className="flex items-center gap-2 text-[10px]">
-                          <span className="text-gray-500 font-mono">{id}</span>
-                          <span style={{ color: NEON }}>{fmtTime(time)}</span>
-                        </span>
-                      ))}
-                    </span>
-                  </span>
-                )}
+                {uuidInstances && <UUIDBadge instances={uuidInstances} />}
               </div>
 
               {/* Pathway bar — absolutely positioned on shared timeline */}
@@ -271,5 +253,33 @@ export function KongDebugViewer({ header }: Props) {
         })}
       </div>
     </div>
+  )
+}
+
+function UUIDBadge({ instances }: { instances: UUIDInstance[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span
+      className="relative flex-shrink-0"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <span
+        className="px-1 rounded text-[10px] cursor-default select-none"
+        style={{ color: '#6b7280', background: 'rgba(255,255,255,0.05)' }}
+      >
+        {instances.length}×
+      </span>
+      {open && (
+        <span className="absolute left-0 top-full mt-1 z-50 flex flex-col gap-0.5 rounded border border-gray-700 bg-gray-900 px-2 py-1.5 shadow-lg whitespace-nowrap">
+          {instances.map(({ id, time }) => (
+            <span key={id} className="flex items-center gap-2 text-[10px]">
+              <span className="text-gray-500 font-mono">{id}</span>
+              <span style={{ color: NEON }}>{fmtTime(time)}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
   )
 }
