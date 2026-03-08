@@ -21,13 +21,15 @@ interface Props {
 }
 
 type UUIDInstance = { id: string; time: number }
+type Extra = { key: string; value: unknown }
 
 type RowData = {
   name: string
   node: DebugNode
   depth: number
   startMs: number
-  uuidInstances?: UUIDInstance[]
+  extras: Extra[]
+  uuidInstances: UUIDInstance[]
 }
 
 function isUUID(s: string) {
@@ -66,7 +68,11 @@ function buildRows(entries: [string, DebugNode][], offset: number, depth: number
       }
     }
 
-    rows.push({ name, node, depth, startMs: cursor, uuidInstances: uuidInstances.length ? uuidInstances : undefined })
+    const extras: Extra[] = Object.entries(node)
+      .filter(([k]) => k !== 'total_time' && k !== 'child')
+      .map(([key, value]) => ({ key, value }))
+
+    rows.push({ name, node, depth, startMs: cursor, extras, uuidInstances })
     if (namedChildren.length) {
       rows.push(...buildRows(namedChildren, cursor, depth + 1))
     }
@@ -75,7 +81,6 @@ function buildRows(entries: [string, DebugNode][], offset: number, depth: number
   return rows
 }
 
-/** Pick 4–5 nice round tick values spanning 0..totalMs */
 function niceTicks(totalMs: number): number[] {
   const target = 4
   const raw = totalMs / target
@@ -100,7 +105,6 @@ export function KongDebugViewer({ header }: Props) {
   const upstreamTime = data.child['upstream']?.total_time ?? null
   const totalTime = allPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
 
-  // Exclude upstream from the chart — it overwhelms gateway phases
   const gatewayPhases = allPhases.filter(([name]) => name !== 'upstream')
   const gatewayTime = data.total_time_without_upstream
     ?? gatewayPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
@@ -121,8 +125,7 @@ export function KongDebugViewer({ header }: Props) {
         )}
         {upstreamTime != null && (
           <span className="text-gray-500">
-            upstream:{' '}
-            <span className="text-gray-300">{fmtTime(upstreamTime)}</span>
+            upstream: <span className="text-gray-300">{fmtTime(upstreamTime)}</span>
           </span>
         )}
         <span className="text-gray-500">
@@ -130,15 +133,13 @@ export function KongDebugViewer({ header }: Props) {
           <span style={{ color: NEON }} className="font-semibold">{fmtTime(gatewayTime)}</span>
         </span>
         <span className="text-gray-500">
-          total:{' '}
-          <span className="text-gray-300">{fmtTime(totalTime)}</span>
+          total: <span className="text-gray-300">{fmtTime(totalTime)}</span>
         </span>
       </div>
 
-      {/* Header row: name col + time ruler + time label col */}
+      {/* Header row */}
       <div className="flex items-end gap-2 mb-1 pb-1 border-b border-gray-800">
         <div className="flex-shrink-0 text-gray-600" style={{ width: 196 }}>Phase / Action</div>
-        {/* Ruler */}
         <div className="flex-1 relative" style={{ height: 20 }}>
           {ticks.map(t => (
             <span
@@ -149,137 +150,125 @@ export function KongDebugViewer({ header }: Props) {
               {t === 0 ? '0' : fmtTime(t)}
             </span>
           ))}
-          {/* tick lines */}
           {ticks.map(t => (
             <span
               key={`line-${t}`}
               className="absolute bottom-0"
-              style={{
-                left: `${pct(t)}%`,
-                width: 1,
-                height: 5,
-                background: 'rgba(255,255,255,0.12)',
-              }}
+              style={{ left: `${pct(t)}%`, width: 1, height: 5, background: 'rgba(255,255,255,0.12)' }}
             />
           ))}
         </div>
         <div className="flex-shrink-0 w-16 text-right text-gray-600">Time</div>
       </div>
 
-      {/* Pathway rows */}
+      {/* Rows */}
       <div>
-        {rows.map((row, i) => {
-          const duration = row.node.total_time
-          const isPhase = row.depth === 0
-          const barH = isPhase ? 16 : row.depth === 1 ? 11 : 8
-          const barAlpha = isPhase ? 1 : Math.max(0.3, 0.7 - (row.depth - 1) * 0.15)
-          const nameColor = isPhase ? NEON : row.depth === 1 ? '#d1d5db' : '#9ca3af'
-          const extras = Object.entries(row.node).filter(([k]) => k !== 'total_time' && k !== 'child')
-          const { uuidInstances } = row
-          const leftPct = pct(row.startMs)
-          const widthPct = duration != null && totalTime > 0 ? pct(duration) : 0
-
-          return (
-            <div
-              key={i}
-              className="flex items-center gap-2"
-              style={{ marginTop: isPhase ? 10 : 2 }}
-            >
-              {/* Name */}
-              <div
-                className="flex-shrink-0 flex items-center gap-1.5"
-                style={{ width: 196, paddingLeft: row.depth * 14 }}
-              >
-                <span
-                  className="truncate min-w-0 flex-1"
-                  style={{
-                    color: nameColor,
-                    fontWeight: isPhase ? 700 : 400,
-                    textTransform: isPhase ? 'uppercase' : 'none',
-                    letterSpacing: isPhase ? '0.07em' : 0,
-                  }}
-                  title={row.name}
-                >
-                  {labelFor(row.name)}
-                </span>
-                {extras.map(([k, v]) => (
-                  <span
-                    key={k}
-                    className="flex-shrink-0 px-1 rounded text-[10px]"
-                    style={{
-                      color: v === false ? '#f87171' : v === true ? NEON : '#6b7280',
-                      background: 'rgba(255,255,255,0.05)',
-                    }}
-                  >
-                    {k}:{String(v)}
-                  </span>
-                ))}
-                {uuidInstances && <UUIDBadge instances={uuidInstances} />}
-              </div>
-
-              {/* Pathway bar — absolutely positioned on shared timeline */}
-              <div className="flex-1 relative" style={{ height: barH }}>
-                {/* faint track for phase rows */}
-                {isPhase && (
-                  <div
-                    className="absolute inset-0 rounded-sm"
-                    style={{ background: 'rgba(111,220,14,0.05)' }}
-                  />
-                )}
-                {duration != null && (
-                  <div
-                    className="absolute h-full rounded-sm"
-                    style={{
-                      left: `${leftPct}%`,
-                      width: widthPct > 0 ? `${widthPct}%` : undefined,
-                      minWidth: 2,
-                      background: NEON,
-                      opacity: barAlpha,
-                    }}
-                    title={duration != null ? fmtTime(duration) : undefined}
-                  />
-                )}
-              </div>
-
-              {/* Duration */}
-              <span
-                className="flex-shrink-0 w-16 text-right tabular-nums"
-                style={{ color: isPhase ? NEON : '#6b7280' }}
-              >
-                {duration != null ? fmtTime(duration) : '—'}
-              </span>
-            </div>
-          )
-        })}
+        {rows.map((row, i) => (
+          <TraceRow key={i} row={row} pct={pct} gatewayTime={gatewayTime} />
+        ))}
       </div>
     </div>
   )
 }
 
-function UUIDBadge({ instances }: { instances: UUIDInstance[] }) {
-  const [open, setOpen] = useState(false)
+function TraceRow({ row, pct, gatewayTime }: {
+  row: RowData
+  pct: (ms: number) => number
+  gatewayTime: number
+}) {
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
+
+  const duration = row.node.total_time
+  const isPhase = row.depth === 0
+  const barH = isPhase ? 16 : row.depth === 1 ? 11 : 8
+  const barAlpha = isPhase ? 1 : Math.max(0.3, 0.7 - (row.depth - 1) * 0.15)
+  const nameColor = isPhase ? NEON : row.depth === 1 ? '#d1d5db' : '#9ca3af'
+  const leftPct = pct(row.startMs)
+  const widthPct = duration != null && gatewayTime > 0 ? pct(duration) : 0
+
+  const hasTooltip = duration != null || row.extras.length > 0 || row.uuidInstances.length > 0
+
   return (
-    <span
-      className="relative flex-shrink-0"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+    <div
+      className="flex items-center gap-2"
+      style={{ marginTop: isPhase ? 10 : 2 }}
+      onMouseMove={(e) => setCursor({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setCursor(null)}
     >
-      <span
-        className="px-1 rounded text-[10px] cursor-default select-none"
-        style={{ color: '#6b7280', background: 'rgba(255,255,255,0.05)' }}
+      {/* Name */}
+      <div
+        className="flex-shrink-0 flex items-center gap-1.5"
+        style={{ width: 196, paddingLeft: row.depth * 14 }}
       >
-        {instances.length}×
-      </span>
-      {open && (
-        <span className="absolute left-0 top-full mt-1 z-50 flex flex-col gap-0.5 rounded border border-gray-700 bg-gray-900 px-2 py-1.5 shadow-lg whitespace-nowrap">
-          {instances.map(({ id, time }) => (
-            <span key={id} className="flex items-center gap-2 text-[10px]">
-              <span className="text-gray-500 font-mono">{id}</span>
-              <span style={{ color: NEON }}>{fmtTime(time)}</span>
-            </span>
-          ))}
+        <span
+          className="truncate min-w-0 flex-1"
+          style={{
+            color: nameColor,
+            fontWeight: isPhase ? 700 : 400,
+            textTransform: isPhase ? 'uppercase' : 'none',
+            letterSpacing: isPhase ? '0.07em' : 0,
+          }}
+          title={row.name}
+        >
+          {labelFor(row.name)}
         </span>
+      </div>
+
+      {/* Pathway bar */}
+      <div className="flex-1 relative" style={{ height: barH }}>
+        {isPhase && (
+          <div className="absolute inset-0 rounded-sm" style={{ background: 'rgba(111,220,14,0.05)' }} />
+        )}
+        {duration != null && (
+          <div
+            className="absolute h-full rounded-sm"
+            style={{
+              left: `${leftPct}%`,
+              width: widthPct > 0 ? `${widthPct}%` : undefined,
+              minWidth: 2,
+              background: NEON,
+              opacity: barAlpha,
+            }}
+          />
+        )}
+      </div>
+
+      {/* Duration */}
+      <span
+        className="flex-shrink-0 w-16 text-right tabular-nums"
+        style={{ color: isPhase ? NEON : '#6b7280' }}
+      >
+        {duration != null ? fmtTime(duration) : '—'}
+      </span>
+
+      {/* Cursor-tracked tooltip */}
+      {cursor && hasTooltip && (
+        <div
+          className="fixed z-50 rounded border border-gray-700 bg-gray-900 px-2.5 py-2 shadow-xl pointer-events-none"
+          style={{ left: cursor.x + 14, top: cursor.y + 14, fontSize: 11, minWidth: 160 }}
+        >
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-gray-300 font-semibold">{labelFor(row.name)}</span>
+            {duration != null && (
+              <span style={{ color: NEON }} className="tabular-nums">{fmtTime(duration)}</span>
+            )}
+          </div>
+          {row.extras.map(({ key, value }) => (
+            <div key={key} className="flex items-center gap-2 leading-5">
+              <span className="text-gray-500">{key}</span>
+              <span style={{ color: value === false ? '#f87171' : value === true ? NEON : '#9ca3af' }}>
+                {String(value)}
+              </span>
+            </div>
+          ))}
+          {row.uuidInstances.map(({ id, time }) => (
+            <div key={id} className="flex items-center gap-2 leading-5 mt-0.5">
+              <span className="text-gray-600 font-mono" style={{ fontSize: 10 }}>{id}</span>
+              <span style={{ color: NEON }} className="tabular-nums">{fmtTime(time)}</span>
+            </div>
+          ))}
+        </div>
       )}
-    </span>
+    </div>
   )
 }
