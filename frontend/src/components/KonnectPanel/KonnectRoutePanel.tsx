@@ -470,6 +470,7 @@ export function KonnectRoutePanel() {
 
   const [portalApis, setPortalApis] = useState<KonnectPortalApi[] | null>(null)
   const [loadingPortalApis, setLoadingPortalApis] = useState(false)
+  const [portalApisDebug, setPortalApisDebug] = useState<string | null>(null)
 
   useEffect(() => {
     if (!ctxMenu) return
@@ -509,6 +510,15 @@ export function KonnectRoutePanel() {
       listApiImplementations(pat, region),
       listApis(pat, region),
     ]).then(([impls, apis]) => {
+      // Debug: show raw first implementation to inspect field names
+      setPortalApisDebug(JSON.stringify({
+        implCount: impls.length,
+        apiCount: apis.length,
+        serviceIdLooking: serviceId,
+        cpIdLooking: cpId,
+        firstImpl: impls[0] ?? null,
+      }, null, 2))
+
       const apiMap = new Map(apis.map(a => [a.id, a]))
       const matchedApiIds = new Set(
         impls
@@ -517,7 +527,7 @@ export function KonnectRoutePanel() {
           .filter(Boolean) as string[]
       )
       setPortalApis([...matchedApiIds].map(id => apiMap.get(id)).filter(Boolean) as KonnectPortalApi[])
-    }).catch(() => setPortalApis([])).finally(() => setLoadingPortalApis(false))
+    }).catch((e) => { setPortalApis([]); setPortalApisDebug(`Error: ${e}`) }).finally(() => setLoadingPortalApis(false))
   }, [data?.service?.id])
 
   async function load() {
@@ -655,7 +665,14 @@ export function KonnectRoutePanel() {
                   </div>
                 )}
                 {!loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
-                  <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
+                  <div>
+                    <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
+                    {portalApisDebug && (
+                      <pre style={{ fontSize: 9, color: '#6b7280', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 4, background: '#0a0a0a', padding: 6, borderRadius: 3 }}>
+                        {portalApisDebug}
+                      </pre>
+                    )}
+                  </div>
                 )}
                 {!loadingPortalApis && portalApis?.map(api => (
                   <div key={api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
