@@ -447,6 +447,7 @@ export async function listPortalApplications(
       if (pageAfter) params['page[after]'] = pageAfter
       const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications`, params)
       const typed = json as { data?: KonnectPortalApplication[]; meta?: { next?: { cursor?: string } } }
+      if (typed.data?.[0]) console.debug('[konnect] application object sample', JSON.stringify(typed.data[0], null, 2))
       results.push(...(typed.data ?? []))
       pageAfter = typed.meta?.next?.cursor ?? undefined
     } while (pageAfter)
