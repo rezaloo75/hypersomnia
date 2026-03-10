@@ -135,7 +135,8 @@ export function cpKindFromClusterType(clusterType?: string): 'serverless' | 'ded
   // Raw cluster_type strings from the v2 API: normalize by stripping underscores/dashes
   const t = clusterType.toUpperCase().replace(/[_-]/g, '')
   if (t.includes('SERVERLESS')) return 'serverless'
-  if (t.includes('CONTROLPLANE') && !t.includes('GROUP')) return 'dedicated'
+  // CLUSTER_TYPE_CONTROL_PLANE is hybrid (manages hybrid DPs), not dedicated cloud.
+  // Dedicated is only reliably identified when stored from the v3 cloud-gateways API above.
   return 'hybrid'
 }
 
