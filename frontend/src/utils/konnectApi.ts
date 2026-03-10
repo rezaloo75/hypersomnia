@@ -256,6 +256,20 @@ export interface KonnectPortalApi {
   description?: string
 }
 
+export interface KonnectApiPublication {
+  id: string
+  api_id?: string
+  portal_id?: string
+  status?: string
+}
+
+export interface KonnectPortal {
+  id: string
+  name: string
+  custom_domain?: string | null
+  default_domain?: string | null
+}
+
 export interface KonnectApiImplementation {
   id: string
   api_id?: string
@@ -283,6 +297,50 @@ export async function listApis(
     pageAfter = json.meta?.next?.cursor ?? undefined
   } while (pageAfter)
   return results
+}
+
+/** List all portals. */
+export async function listPortals(
+  pat: string,
+  region: KonnectRegion,
+): Promise<KonnectPortal[]> {
+  try {
+    const results: KonnectPortal[] = []
+    let pageAfter: string | undefined
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' }
+      if (pageAfter) params['page[after]'] = pageAfter
+      const json = await konnectGet(pat, region, '/v3/portals', params) as {
+        data?: KonnectPortal[]
+        meta?: { next?: { cursor?: string } }
+      }
+      results.push(...(json.data ?? []))
+      pageAfter = json.meta?.next?.cursor ?? undefined
+    } while (pageAfter)
+    return results
+  } catch { return [] }
+}
+
+/** List all API publications (top-level resource). */
+export async function listApiPublications(
+  pat: string,
+  region: KonnectRegion,
+): Promise<KonnectApiPublication[]> {
+  try {
+    const results: KonnectApiPublication[] = []
+    let pageAfter: string | undefined
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' }
+      if (pageAfter) params['page[after]'] = pageAfter
+      const json = await konnectGet(pat, region, '/v3/api-publications', params) as {
+        data?: KonnectApiPublication[]
+        meta?: { next?: { cursor?: string } }
+      }
+      results.push(...(json.data ?? []))
+      pageAfter = json.meta?.next?.cursor ?? undefined
+    } while (pageAfter)
+    return results
+  } catch { return [] }
 }
 
 /** List all API implementations (top-level resource, not a sub-path of /v3/apis/{id}). */

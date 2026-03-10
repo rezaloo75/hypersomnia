@@ -17,6 +17,8 @@ import {
   listAllPlugins,
   listApis,
   listApiImplementations,
+  listApiPublications,
+  listPortals,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
@@ -442,6 +444,11 @@ function CpTable({ obj, extraRows }: { obj: Record<string, unknown>; extraRows?:
 
 // ── Panel data ─────────────────────────────────────────────────────────────────
 
+interface PortalApiEntry {
+  api: KonnectPortalApi
+  portals: Array<{ name: string; url: string }>
+}
+
 interface PanelData {
   cp: Record<string, unknown> | null
   route: Record<string, unknown> | null
@@ -468,7 +475,7 @@ export function KonnectRoutePanel() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const [showDeckModal, setShowDeckModal] = useState(false)
 
-  const [portalApis, setPortalApis] = useState<KonnectPortalApi[] | null>(null)
+  const [portalApis, setPortalApis] = useState<PortalApiEntry[] | null>(null)
   const [loadingPortalApis, setLoadingPortalApis] = useState(false)
 
   useEffect(() => {
@@ -508,15 +515,41 @@ export function KonnectRoutePanel() {
     Promise.all([
       listApiImplementations(pat, region),
       listApis(pat, region),
-    ]).then(([impls, apis]) => {
+      listApiPublications(pat, region),
+      listPortals(pat, region),
+    ]).then(([impls, apis, publications, portals]) => {
       const apiMap = new Map(apis.map(a => [a.id, a]))
+      const portalMap = new Map(portals.map(p => [p.id, p]))
+
+      // Build api_id → portal entries from publications
+      const apiPortals = new Map<string, Array<{ name: string; url: string }>>()
+      for (const pub of publications) {
+        if (!pub.api_id || !pub.portal_id) continue
+        const portal = portalMap.get(pub.portal_id)
+        if (!portal) continue
+        const domain = portal.custom_domain || portal.default_domain
+        if (!domain) continue
+        const url = domain.startsWith('http') ? domain : `https://${domain}`
+        const list = apiPortals.get(pub.api_id) ?? []
+        list.push({ name: portal.name, url })
+        apiPortals.set(pub.api_id, list)
+      }
+
       const matchedApiIds = new Set(
         impls
           .filter(impl => impl.service?.id === serviceId && impl.service?.control_plane_id === cpId)
           .map(impl => impl.api_id)
           .filter(Boolean) as string[]
       )
-      setPortalApis([...matchedApiIds].map(id => apiMap.get(id)).filter(Boolean) as KonnectPortalApi[])
+
+      const entries = [...matchedApiIds]
+        .map(id => {
+          const api = apiMap.get(id)
+          return api ? { api, portals: apiPortals.get(id) ?? [] } : null
+        })
+        .filter(Boolean) as PortalApiEntry[]
+
+      setPortalApis(entries)
     }).catch(() => setPortalApis([])).finally(() => setLoadingPortalApis(false))
   }, [data?.service?.id])
 
@@ -646,29 +679,6 @@ export function KonnectRoutePanel() {
               )}
             </Accordion>
 
-            {/* ── Portal APIs ── */}
-            {data?.service && (
-              <Accordion label="Portal APIs" count={portalApis?.length}>
-                {loadingPortalApis && (
-                  <div className="flex items-center gap-1.5 text-gray-600 py-1">
-                    <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Looking up APIs…</span>
-                  </div>
-                )}
-                {!loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
-                  <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
-                )}
-                {!loadingPortalApis && portalApis?.map(api => (
-                  <div key={api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
-                    <div className="font-semibold text-gray-200 truncate" style={{ fontSize: 11 }}>{api.name}</div>
-                    {api.description && (
-                      <div className="text-gray-500 mt-0.5 line-clamp-2" style={{ fontSize: 10 }}>{api.description}</div>
-                    )}
-                    <div className="font-mono text-gray-600 mt-1 truncate" style={{ fontSize: 9 }}>{api.id}</div>
-                  </div>
-                ))}
-              </Accordion>
-            )}
-
             {/* ── Gateway Configuration ── */}
             <Accordion
               label="Gateway Configuration"
@@ -710,6 +720,48 @@ export function KonnectRoutePanel() {
                 <p className="text-gray-600 py-1">No gateway configuration data.</p>
               )}
             </Accordion>
+
+            {/* ── Portal APIs ── */}
+            {data?.service && (
+              <Accordion label="Portal APIs" count={portalApis?.length}>
+                {loadingPortalApis && (
+                  <div className="flex items-center gap-1.5 text-gray-600 py-1">
+                    <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Looking up portal APIs…</span>
+                  </div>
+                )}
+                {!loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
+                  <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
+                )}
+                {!loadingPortalApis && portalApis?.map(entry => (
+                  <div key={entry.api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
+                    <div className="font-semibold text-gray-200 truncate" style={{ fontSize: 11 }}>{entry.api.name}</div>
+                    {entry.api.description && (
+                      <div className="text-gray-500 mt-1" style={{ fontSize: 10, lineHeight: '14px' }}>{entry.api.description}</div>
+                    )}
+                    {entry.portals.length > 0 && (
+                      <div style={{ marginTop: 6 }}>
+                        <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 3 }}>Published on</div>
+                        {entry.portals.map(p => (
+                          <a
+                            key={p.url}
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors"
+                            style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 3, textDecoration: 'none' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.1)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.05)')}
+                          >
+                            <span className="truncate">{p.name}</span>
+                            <svg viewBox="0 0 12 12" fill="none" style={{ width: 10, height: 10, flexShrink: 0 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </Accordion>
+            )}
 
           </div>
         )}
