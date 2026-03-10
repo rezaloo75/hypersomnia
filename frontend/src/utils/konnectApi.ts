@@ -277,11 +277,24 @@ export interface KonnectPortalApplication {
   description?: string | null
   status?: string
   created_at?: string
+  updated_at?: string
+  reference_id?: string | null
+  redirect_uris?: string[] | null
+  labels?: Record<string, string> | null
   developer?: {
     id?: string
     full_name?: string | null
     email?: string | null
+    status?: string
   } | null
+}
+
+export interface KonnectAppRegistration {
+  id: string
+  status?: string
+  created_at?: string
+  api_product?: { id?: string; name?: string } | null
+  api_product_version?: { id?: string; name?: string } | null
 }
 
 export interface KonnectApiImplementation {
@@ -379,6 +392,20 @@ export async function listApiImplementations(
   } catch { return [] }
 }
 
+/** List registrations (API product subscriptions) for a portal application. */
+export async function listAppRegistrations(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+  appId: string,
+): Promise<KonnectAppRegistration[]> {
+  try {
+    const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications/${appId}/registrations`, { 'page[size]': '100' })
+    const typed = json as { data?: KonnectAppRegistration[] }
+    return typed.data ?? []
+  } catch { return [] }
+}
+
 /** List all applications for a portal.
  *  Tries the v3 portal endpoint first; falls back to v2 (legacy portals). */
 export async function listPortalApplications(
@@ -394,14 +421,13 @@ export async function listPortalApplications(
       const params: Record<string, string> = { 'page[size]': '100' }
       if (pageAfter) params['page[after]'] = pageAfter
       const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications`, params)
-      console.debug('[konnect] v3 portal applications raw response', portalId, json)
       const typed = json as { data?: KonnectPortalApplication[]; meta?: { next?: { cursor?: string } } }
       results.push(...(typed.data ?? []))
       pageAfter = typed.meta?.next?.cursor ?? undefined
     } while (pageAfter)
     return results
-  } catch (e3) {
-    console.debug('[konnect] v3 portal applications failed, trying v2', portalId, e3)
+  } catch {
+    // fall through to v2
   }
 
   // Fall back to v2 (legacy portal IDs)
@@ -412,16 +438,12 @@ export async function listPortalApplications(
       const params: Record<string, string> = { size: '100' }
       if (offset) params.offset = offset
       const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params)
-      console.debug('[konnect] v2 portal applications raw response', portalId, json)
       const typed = json as { data?: KonnectPortalApplication[]; offset?: string }
       results.push(...(typed.data ?? []))
       offset = typed.offset
     } while (offset)
     return results
-  } catch (e2) {
-    console.error('[konnect] listPortalApplications both v3+v2 failed', portalId, e2)
-    return []
-  }
+  } catch { return [] }
 }
 
 export async function listRoutes(

@@ -20,11 +20,13 @@ import {
   listApiPublications,
   listPortals,
   listPortalApplications,
+  listAppRegistrations,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
   type KonnectPortalApi,
   type KonnectPortalApplication,
+  type KonnectAppRegistration,
 } from '../../utils/konnectApi'
 
 const CP_TYPE_LABELS: Record<string, string> = {
@@ -453,13 +455,140 @@ function CpTable({ obj, extraRows }: { obj: Record<string, unknown>; extraRows?:
   )
 }
 
+// ── App card helpers ───────────────────────────────────────────────────────────
+
+function statusStyle(status: string): React.CSSProperties {
+  const good = ['approved', 'active', 'enabled'].includes(status)
+  const warn = ['pending_creation', 'pending'].includes(status)
+  return {
+    fontSize: 8, fontWeight: 600, padding: '1px 4px', borderRadius: 2, flexShrink: 0,
+    background: good ? 'rgba(111,220,14,0.12)' : warn ? 'rgba(245,158,11,0.12)' : 'rgba(248,113,113,0.12)',
+    color: good ? NEON : warn ? '#f59e0b' : '#f87171',
+    border: `1px solid ${good ? 'rgba(111,220,14,0.2)' : warn ? 'rgba(245,158,11,0.2)' : 'rgba(248,113,113,0.2)'}`,
+  }
+}
+
+function fmtDate(iso?: string | null): string | null {
+  if (!iso) return null
+  try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) }
+  catch { return iso }
+}
+
+function AppCard({ entry, portalName, portalUrl }: { entry: AppEntry; portalName: string; portalUrl: string }) {
+  const { app, registrations } = entry
+  const hasLabels = app.labels && Object.keys(app.labels).length > 0
+
+  return (
+    <div style={{ background: '#0d0d0d', border: '1px solid #222', borderRadius: 4, padding: '6px 8px', marginBottom: 5 }}>
+
+      {/* Name + status */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="font-semibold text-gray-200 truncate" style={{ fontSize: 10 }}>{app.name}</span>
+        {app.status && <span style={statusStyle(app.status)}>{app.status.replace(/_/g, ' ')}</span>}
+      </div>
+
+      {/* Description */}
+      {app.description && (
+        <div className="text-gray-500 mt-1" style={{ fontSize: 9, lineHeight: '13px' }}>{app.description}</div>
+      )}
+
+      {/* Developer */}
+      {app.developer && (
+        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Developer</div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(app.developer.full_name || app.developer.email) && (
+              <span className="text-gray-300" style={{ fontSize: 9 }}>
+                {[app.developer.full_name, app.developer.email].filter(Boolean).join(' · ')}
+              </span>
+            )}
+            {app.developer.status && (
+              <span style={statusStyle(app.developer.status)}>{app.developer.status.replace(/_/g, ' ')}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Portal */}
+      <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+        <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Portal</div>
+        <a
+          href={portalUrl} target="_blank" rel="noopener noreferrer"
+          style={{ fontSize: 9, color: NEON, textDecoration: 'none' }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >{portalName}</a>
+      </div>
+
+      {/* Details grid */}
+      <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+        {[
+          ['created', fmtDate(app.created_at)],
+          ['updated', fmtDate(app.updated_at)],
+          ['reference id', app.reference_id],
+        ].filter(([, v]) => v).map(([k, v]) => (
+          <div key={k as string} className="flex gap-2" style={{ padding: '1px 0' }}>
+            <span className="text-gray-600 flex-shrink-0 font-mono" style={{ fontSize: 9, minWidth: 76 }}>{k}</span>
+            <span className="text-gray-400 font-mono break-all" style={{ fontSize: 9 }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Redirect URIs */}
+      {app.redirect_uris && app.redirect_uris.length > 0 && (
+        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Redirect URIs</div>
+          {app.redirect_uris.map(uri => (
+            <div key={uri} className="font-mono text-gray-400 break-all" style={{ fontSize: 9 }}>{uri}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Labels */}
+      {hasLabels && (
+        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Labels</div>
+          <div className="flex flex-wrap gap-1">
+            {Object.entries(app.labels!).map(([k, v]) => (
+              <span key={k} className="inline-flex items-center" style={{ background: '#0f1a0f', border: '1px solid rgba(111,220,14,0.18)', borderRadius: 3, overflow: 'hidden' }}>
+                <span style={{ padding: '1px 4px', fontSize: 8, color: '#6b9e6b', borderRight: '1px solid rgba(111,220,14,0.15)', background: '#0a120a' }}>{k}</span>
+                <span style={{ padding: '1px 4px', fontSize: 8, color: '#d1d5db' }}>{v}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Registrations */}
+      {registrations.length > 0 && (
+        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
+          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Registrations</div>
+          {registrations.map(reg => (
+            <div key={reg.id} className="flex items-center gap-1.5 flex-wrap" style={{ padding: '1px 0' }}>
+              <span className="text-gray-400" style={{ fontSize: 9 }}>
+                {[reg.api_product?.name, reg.api_product_version?.name].filter(Boolean).join(' – ') || reg.id}
+              </span>
+              {reg.status && <span style={statusStyle(reg.status)}>{reg.status.replace(/_/g, ' ')}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Panel data ─────────────────────────────────────────────────────────────────
+
+interface AppEntry {
+  app: KonnectPortalApplication
+  registrations: KonnectAppRegistration[]
+}
 
 interface PortalEntry {
   id: string
   name: string
   url: string
-  applications: KonnectPortalApplication[]
+  appEntries: AppEntry[]
 }
 
 interface PortalApiEntry {
@@ -571,19 +700,34 @@ export function KonnectRoutePanel() {
         appsByPortal.set(portalId, apps)
       }))
 
+      // Fetch registrations for every application in parallel
+      const registrationsByApp = new Map<string, KonnectAppRegistration[]>()
+      await Promise.all(
+        [...appsByPortal.entries()].flatMap(([portalId, apps]) =>
+          apps.map(async app => {
+            const regs = await listAppRegistrations(pat, region, portalId, app.id)
+            registrationsByApp.set(app.id, regs)
+          })
+        )
+      )
+
       const entries = [...matchedApiIds]
         .map(id => {
           const api = apiMap.get(id)
           if (!api) return null
           const portalsForApi: PortalEntry[] = (apiPortals.get(id) ?? []).map(p => ({
-            ...p,
-            applications: appsByPortal.get(p.id) ?? [],
+            id: p.id,
+            name: p.name,
+            url: p.url,
+            appEntries: (appsByPortal.get(p.id) ?? []).map(app => ({
+              app,
+              registrations: registrationsByApp.get(app.id) ?? [],
+            })),
           }))
           return { api, portals: portalsForApi }
         })
         .filter(Boolean) as PortalApiEntry[]
 
-      console.debug('[konnect] portal api entries', entries)
       setPortalApis(entries)
     }).catch((e) => { console.error('[konnect] portal apis failed', e); setPortalApis([]) }).finally(() => setLoadingPortalApis(false))
   }, [data?.service?.id])
@@ -779,46 +923,21 @@ export function KonnectRoutePanel() {
                           href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors"
-                          style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 3, textDecoration: 'none' }}
+                          className="flex items-center justify-between gap-2 px-2 py-1 rounded"
+                          style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 6, textDecoration: 'none' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.1)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.05)')}
                         >
                           <span className="truncate">{p.name}</span>
                           <svg viewBox="0 0 12 12" fill="none" style={{ width: 10, height: 10, flexShrink: 0 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </a>
-                        {p.applications.length > 0 && (
-                          <div style={{ marginTop: 4 }}>
-                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 3 }}>Applications ({p.applications.length})</div>
-                            {p.applications.map(app => (
-                              <div
-                                key={app.id}
-                                style={{ background: '#111111', border: '1px solid #1e1e1e', borderRadius: 3, padding: '4px 7px', marginBottom: 3 }}
-                              >
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-gray-200 truncate font-medium" style={{ fontSize: 10 }}>{app.name}</span>
-                                  {app.status && (
-                                    <span style={{
-                                      fontSize: 8, fontWeight: 600, padding: '1px 4px', borderRadius: 2, flexShrink: 0,
-                                      background: app.status === 'approved' ? 'rgba(111,220,14,0.12)' : app.status === 'pending_creation' ? 'rgba(245,158,11,0.12)' : 'rgba(248,113,113,0.12)',
-                                      color: app.status === 'approved' ? NEON : app.status === 'pending_creation' ? '#f59e0b' : '#f87171',
-                                      border: `1px solid ${app.status === 'approved' ? 'rgba(111,220,14,0.2)' : app.status === 'pending_creation' ? 'rgba(245,158,11,0.2)' : 'rgba(248,113,113,0.2)'}`,
-                                    }}>
-                                      {app.status.replace(/_/g, ' ')}
-                                    </span>
-                                  )}
-                                </div>
-                                {app.developer?.email && (
-                                  <div className="text-gray-600 truncate mt-0.5" style={{ fontSize: 9 }}>
-                                    {app.developer.full_name ? `${app.developer.full_name} · ` : ''}{app.developer.email}
-                                  </div>
-                                )}
-                                {app.description && (
-                                  <div className="text-gray-600 mt-0.5" style={{ fontSize: 9, lineHeight: '13px' }}>{app.description}</div>
-                                )}
-                              </div>
+                        {p.appEntries.length > 0 && (
+                          <>
+                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 4 }}>Applications ({p.appEntries.length})</div>
+                            {p.appEntries.map(appEntry => (
+                              <AppCard key={appEntry.app.id} entry={appEntry} portalName={p.name} portalUrl={p.url} />
                             ))}
-                          </div>
+                          </>
                         )}
                       </div>
                     ))}
