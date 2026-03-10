@@ -744,7 +744,7 @@ export function KonnectRoutePanel() {
                         {entry.portals.map(p => (
                           <a
                             key={p.url}
-                            href={p.url}
+                            href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors"

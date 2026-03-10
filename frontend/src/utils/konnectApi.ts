@@ -253,6 +253,7 @@ export async function listServices(
 export interface KonnectPortalApi {
   id: string
   name: string
+  slug?: string
   description?: string
 }
 
