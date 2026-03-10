@@ -354,10 +354,19 @@ function YamlLine({ line }: { line: string }) {
 
 // ── Accordion ──────────────────────────────────────────────────────────────────
 
-function Accordion({ label, sub, count, defaultOpen = false, children }: {
-  label: string; sub?: string; count?: number; defaultOpen?: boolean; children: React.ReactNode
+function Accordion({ label, sub, count, storageKey, children }: {
+  label: string; sub?: string; count?: number; storageKey: string; children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(() =>
+    localStorage.getItem(`hs_acc_${storageKey}`) === 'true'
+  )
+
+  function toggle() {
+    const next = !open
+    setOpen(next)
+    localStorage.setItem(`hs_acc_${storageKey}`, String(next))
+  }
+
   return (
     <div className="border-b" style={{ borderColor: '#1a1a1a' }}>
       <button
@@ -365,7 +374,7 @@ function Accordion({ label, sub, count, defaultOpen = false, children }: {
         style={{ padding: '5px 10px', background: 'transparent' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
       >
         <ChevronRightIcon className="flex-shrink-0 transition-transform duration-150"
           style={{ width: 10, height: 10, color: '#4b5563', transform: open ? 'rotate(90deg)' : 'rotate(0)' }} />
@@ -691,7 +700,7 @@ export function KonnectRoutePanel() {
           <div>
 
             {/* ── Control Plane ── */}
-            <Accordion label="Control Plane" defaultOpen>
+            <Accordion label="Control Plane" storageKey="konnect_cp">
               {data?.cp ? (
                 <CpTable
                   obj={data.cp}
@@ -706,10 +715,7 @@ export function KonnectRoutePanel() {
             </Accordion>
 
             {/* ── Gateway Configuration ── */}
-            <Accordion
-              label="Gateway Configuration"
-              defaultOpen
-            >
+            <Accordion label="Gateway Configuration" storageKey="konnect_gw">
               {notFound && (
                 <div className="mb-2 p-2 rounded" style={{ background: '#1a1200', border: '1px solid #3a2a00', color: '#f59e0b' }}>
                   <p className="font-semibold">No matching route found</p>
@@ -749,7 +755,7 @@ export function KonnectRoutePanel() {
 
             {/* ── Portal APIs ── */}
             {data?.service && (
-              <Accordion label="Portal APIs" count={portalApis?.length}>
+              <Accordion label="Portal APIs" storageKey="konnect_portal_apis" count={portalApis?.length}>
                 {loadingPortalApis && (
                   <div className="flex items-center gap-1.5 text-gray-600 py-1">
                     <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Looking up portal APIs…</span>
