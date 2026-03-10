@@ -41,14 +41,19 @@ export function extractCpPrefix(endpoint?: string): string | null {
   return match?.[1] ?? null
 }
 
-/** Fetch the proxy hostname for a cloud gateway CP from the (undocumented) v3 cloud-gateways API.
- *  Returns a full https:// URL or null if unavailable. */
+export interface CloudGatewayResult {
+  url: string | null
+  /** Normalized CP kind derived from the v3 cloud-gateways API — more reliable than cluster_type. */
+  cpKind: 'serverless' | 'dedicated' | null
+}
+
+/** Fetch the proxy hostname for a cloud gateway CP from the (undocumented) v3 cloud-gateways API. */
 export async function getCloudGatewayBaseUrl(
   pat: string,
   cpId: string,
   geo: string,
   cpEndpoint?: string,
-): Promise<string | null> {
+): Promise<CloudGatewayResult | null> {
   const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
     'filter[control_plane_id]': cpId,
     'filter[control_plane_geo]': geo,
@@ -62,18 +67,16 @@ export async function getCloudGatewayBaseUrl(
   // Serverless gateways: proxy hostname is in dataplane_groups[].hostnames[]
   if (kind === 'serverless.v0') {
     const hostname = (config.dataplane_groups as Array<{ hostnames?: string[] }>)?.[0]?.hostnames?.[0]
-    return hostname ? `https://${hostname}` : null
+    return { url: hostname ? `https://${hostname}` : null, cpKind: 'serverless' }
   }
 
   // Dedicated gateways: Public Edge DNS is derived from the control_plane_endpoint prefix.
-  // e.g. "https://cf032d53cb.us.cp0.konghq.com" → "https://cf032d53cb.gateways.konggateway.com"
   if (kind === 'dedicated.v0') {
-    console.log('[dedicated.v0] full config:', JSON.stringify(config, null, 2))
     const prefix = extractCpPrefix(cpEndpoint)
-    return prefix ? `https://${prefix}.gateways.konggateway.com` : null
+    return { url: prefix ? `https://${prefix}.gateways.konggateway.com` : null, cpKind: 'dedicated' }
   }
 
-  return null
+  return { url: null, cpKind: null }
 }
 
 export interface KonnectService {
@@ -119,6 +122,101 @@ async function konnectGet(
     throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
   }
   return res.json()
+}
+
+/** Normalize a stored kongCpType value to a simplified category.
+ *  Handles clean values ('serverless', 'dedicated') stored from the v3 API,
+ *  as well as raw cluster_type strings like CLUSTER_TYPE_SERVER_LESS from the v2 API. */
+export function cpKindFromClusterType(clusterType?: string): 'serverless' | 'dedicated' | 'hybrid' {
+  if (!clusterType) return 'hybrid'
+  // Already-normalized values stored from the v3 cloud-gateways API
+  if (clusterType === 'serverless') return 'serverless'
+  if (clusterType === 'dedicated') return 'dedicated'
+  // Raw cluster_type strings from the v2 API: normalize by stripping underscores/dashes
+  const t = clusterType.toUpperCase().replace(/[_-]/g, '')
+  if (t.includes('SERVERLESS')) return 'serverless'
+  if (t.includes('CONTROLPLANE') && !t.includes('GROUP')) return 'dedicated'
+  return 'hybrid'
+}
+
+/** Fetch the current KONG_REQUEST_DEBUG_TOKEN env var from a dedicated cloud gateway configuration.
+ *  Returns the token string if found, or null if not set / not reachable. */
+export async function fetchDedicatedCpDebugToken(
+  pat: string,
+  cpId: string,
+  geo: string,
+): Promise<string | null> {
+  try {
+    const json = await konnectGet(pat, 'global', '/v3/cloud-gateways/configurations', {
+      'filter[control_plane_id]': cpId,
+      'filter[control_plane_geo]': geo,
+    }) as { data?: Array<Record<string, unknown>> }
+
+    const config = json.data?.[0]
+    if (!config) return null
+
+    // Try top-level environment_variables
+    const topEnv = config.environment_variables as Record<string, unknown> | undefined
+    if (topEnv?.KONG_REQUEST_DEBUG_TOKEN) return String(topEnv.KONG_REQUEST_DEBUG_TOKEN)
+
+    // Try dataplane_groups[].environment_variables
+    const groups = config.dataplane_groups as Array<Record<string, unknown>> | undefined
+    for (const group of groups ?? []) {
+      const env = group.environment_variables as Record<string, unknown> | undefined
+      if (env?.KONG_REQUEST_DEBUG_TOKEN) return String(env.KONG_REQUEST_DEBUG_TOKEN)
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Fetch full detail for a control plane. */
+export async function getCpDetail(
+  pat: string,
+  region: KonnectRegion,
+  cpId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await konnectGet(pat, region, `/v2/control-planes/${cpId}`) as Record<string, unknown>
+  } catch { return null }
+}
+
+/** Fetch all plugins for a CP (global + route-scoped + service-scoped). */
+export async function listAllPlugins(
+  pat: string,
+  region: KonnectRegion,
+  cpId: string,
+): Promise<Array<Record<string, unknown>>> {
+  try {
+    const json = await konnectGet(pat, region, `/v2/control-planes/${cpId}/core-entities/plugins`, { size: '1000' }) as { data?: Array<Record<string, unknown>> }
+    return json.data ?? []
+  } catch { return [] }
+}
+
+/** Fetch a single route's full detail from a CP. */
+export async function getRouteDetail(
+  pat: string,
+  region: KonnectRegion,
+  cpId: string,
+  routeId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await konnectGet(pat, region, `/v2/control-planes/${cpId}/core-entities/routes/${routeId}`) as Record<string, unknown>
+  } catch { return null }
+}
+
+/** Fetch a single service's full detail from a CP. */
+export async function getServiceDetail(
+  pat: string,
+  region: KonnectRegion,
+  cpId: string,
+  serviceId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await konnectGet(pat, region, `/v2/control-planes/${cpId}/core-entities/services/${serviceId}`) as Record<string, unknown>
+  } catch { return null }
 }
 
 export async function listControlPlanes(pat: string, region: KonnectRegion): Promise<KonnectCP[]> {

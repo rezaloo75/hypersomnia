@@ -1,12 +1,10 @@
-import type { Folder, Request, Environment, RequestExecution } from '../types'
+import type { Folder, Request, RequestExecution } from '../types'
 
 const KEYS = {
   folders: 'hs_folders',
   requests: 'hs_requests',
-  environments: 'hs_environments',
   history: 'hs_history',
   activeRequestId: 'hs_activeRequestId',
-  activeEnvironmentId: 'hs_activeEnvironmentId',
   konnectPat: 'hs_konnect_pat',
   konnectRegion: 'hs_konnect_region',
   konnectLastSync: 'hs_konnect_last_sync',
@@ -36,17 +34,11 @@ export const storage = {
   loadRequests: () => load<Request[]>(KEYS.requests, []),
   saveRequests: (v: Request[]) => save(KEYS.requests, v),
 
-  loadEnvironments: () => load<Environment[]>(KEYS.environments, []),
-  saveEnvironments: (v: Environment[]) => save(KEYS.environments, v),
-
   loadHistory: () => load<RequestExecution[]>(KEYS.history, []),
   saveHistory: (v: RequestExecution[]) => save(KEYS.history, v),
 
   loadActiveRequestId: () => load<string | null>(KEYS.activeRequestId, null),
   saveActiveRequestId: (v: string | null) => save(KEYS.activeRequestId, v),
-
-  loadActiveEnvironmentId: () => load<string | null>(KEYS.activeEnvironmentId, null),
-  saveActiveEnvironmentId: (v: string | null) => save(KEYS.activeEnvironmentId, v),
 
   loadKonnectPat: () => load<string | null>(KEYS.konnectPat, null),
   saveKonnectPat: (v: string | null) => save(KEYS.konnectPat, v),

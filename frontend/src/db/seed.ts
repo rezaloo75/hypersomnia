@@ -1,17 +1,10 @@
-import type { Folder, Request, Environment, KeyValuePair } from '../types'
+import type { Folder, Request, KeyValuePair } from '../types'
 
 const FOL_ID = 'seed-breweries'
-const ENV_ID = 'seed-test-env'
 
 export const seedFolders: Folder[] = [
-  { id: FOL_ID, name: 'Breweries', sortOrder: 0 },
+  { id: FOL_ID, name: 'Breweries', sortOrder: 0, variables: { baseUrl: 'https://api.openbrewerydb.org/v1' } },
 ]
-
-export const seedEnvironment: Environment = {
-  id: ENV_ID,
-  name: 'Test',
-  variables: { baseUrl: 'https://api.openbrewerydb.org/v1' },
-}
 
 function param(id: string, key: string): KeyValuePair {
   return { id, key, value: '', enabled: false }
@@ -69,5 +62,4 @@ export const seedRequests: Request[] = [
   },
 ]
 
-export const SEED_ACTIVE_REQUEST_ID  = 'seed-list-breweries'
-export const SEED_ACTIVE_ENV_ID      = ENV_ID
+export const SEED_ACTIVE_REQUEST_ID = 'seed-list-breweries'

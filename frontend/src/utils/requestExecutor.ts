@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import type { Request, RequestExecution, ResponseData } from '../types'
+import type { Folder, Request, RequestExecution, ResponseData } from '../types'
 import { interpolate } from './interpolate'
 import { API_BASE } from './api'
 
@@ -130,9 +130,11 @@ async function executeDirectly(
 
 export async function executeRequest(
   request: Request,
-  variables: Record<string, string>
+  variables: Record<string, string>,
+  topLevelFolder?: Folder,
 ): Promise<RequestExecution> {
   const { url, headers, body } = resolveAll(request, variables)
+
   const startTime = Date.now()
 
   // Local URLs can't go through the Railway relay — send directly from the browser

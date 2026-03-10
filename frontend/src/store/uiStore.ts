@@ -1,16 +1,16 @@
 import { create } from 'zustand'
 import type { RequestExecution, AIMessage } from '../types'
 
-type ResponseTab = 'body' | 'headers' | 'debug' | 'kong'
+type ResponseTab = 'body' | 'headers' | 'details' | 'kong'
 type BodyFormat = 'pretty' | 'raw'
 
 interface UIState {
   // Layout
   sidebarWidth: number
-  aiPanelOpen: boolean
+  activeRightPanel: string | null
   setSidebarWidth: (w: number) => void
-  setAiPanelOpen: (open: boolean) => void
-  toggleAiPanel: () => void
+  setActiveRightPanel: (id: string | null) => void
+  toggleRightPanel: (id: string) => void
 
   // Response
   activeResponseTab: ResponseTab
@@ -40,14 +40,22 @@ interface UIState {
   expandedFolders: Set<string>
   toggleFolder: (id: string) => void
   expandFolder: (id: string) => void
+
+  // Active folder (for variable editor)
+  activeFolderId: string | null
+  setActiveFolderId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
   sidebarWidth: 260,
-  aiPanelOpen: localStorage.getItem('hs_aiPanelOpen') !== 'false',
+  activeRightPanel: localStorage.getItem('hs_activeRightPanel') ?? null,
   setSidebarWidth: (w) => set({ sidebarWidth: w }),
-  setAiPanelOpen: (open) => { localStorage.setItem('hs_aiPanelOpen', String(open)); set({ aiPanelOpen: open }) },
-  toggleAiPanel: () => set((s) => { const next = !s.aiPanelOpen; localStorage.setItem('hs_aiPanelOpen', String(next)); return { aiPanelOpen: next } }),
+  setActiveRightPanel: (id) => { localStorage.setItem('hs_activeRightPanel', id ?? ''); set({ activeRightPanel: id }) },
+  toggleRightPanel: (id) => set((s) => {
+    const next = s.activeRightPanel === id ? null : id
+    localStorage.setItem('hs_activeRightPanel', next ?? '')
+    return { activeRightPanel: next }
+  }),
 
   activeResponseTab: 'body',
   bodyFormat: 'pretty',
@@ -81,4 +89,7 @@ export const useUIStore = create<UIState>((set) => ({
     next.add(id)
     return { expandedFolders: next }
   }),
+
+  activeFolderId: null,
+  setActiveFolderId: (id) => set({ activeFolderId: id }),
 }))

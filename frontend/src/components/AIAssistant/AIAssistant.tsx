@@ -10,20 +10,21 @@ import { API_BASE } from '../../utils/api'
 const MAX_CONTEXT_BODY = 4000
 
 function buildContext(store: ReturnType<typeof useWorkspaceStore.getState>, currentExecution: ReturnType<typeof useUIStore.getState>['currentExecution']) {
-  const { activeRequestId, activeEnvironmentId, requests, folders, environments } = store
+  const { activeRequestId, requests, folders } = store
 
   const activeRequest = requests.find(r => r.id === activeRequestId)
-  const activeEnv = environments.find(e => e.id === activeEnvironmentId)
   const allRequests = requests.map(r => ({ id: r.id, name: r.name, method: r.method, url: r.url, folderId: r.folderId }))
   const allFolders = folders.map(f => ({ id: f.id, name: f.name, parentId: f.parentId }))
 
-  // Redact secrets from environment
-  const safeVars: Record<string, string> = {}
-  if (activeEnv) {
-    for (const [k, v] of Object.entries(activeEnv.variables)) {
+  // Build folder variables context (redact secrets)
+  const folderVariables: Record<string, Record<string, string>> = {}
+  for (const folder of folders.filter(f => !f.parentId && f.variables && Object.keys(f.variables).length > 0)) {
+    const safeVars: Record<string, string> = {}
+    for (const [k, v] of Object.entries(folder.variables!)) {
       const isSecret = /token|secret|password|key|auth/i.test(k)
       safeVars[k] = isSecret ? '••••••' : v
     }
+    folderVariables[folder.name] = safeVars
   }
 
   const lastResponse = currentExecution ? {
@@ -36,14 +37,14 @@ function buildContext(store: ReturnType<typeof useWorkspaceStore.getState>, curr
 
   return {
     activeRequest,
-    environment: activeEnv ? { name: activeEnv.name, variables: safeVars } : null,
+    folderVariables: Object.keys(folderVariables).length > 0 ? folderVariables : null,
     workspaceTree: { folders: allFolders, requests: allRequests },
     lastResponse,
   }
 }
 
 export function AIAssistant() {
-  const { aiMessages, aiLoading, addAiMessage, setAiLoading, clearAiMessages, setAiPanelOpen } = useUIStore()
+  const { aiMessages, aiLoading, addAiMessage, setAiLoading, clearAiMessages, setActiveRightPanel } = useUIStore()
   const { currentExecution } = useUIStore()
 
   const [input, setInput] = useState('')
@@ -104,7 +105,7 @@ export function AIAssistant() {
         </div>
         <div className="flex gap-1">
           <button className="btn-ghost p-1" onClick={clearAiMessages} title="Clear conversation"><TrashIcon className="w-4 h-4" /></button>
-          <button className="btn-ghost p-1" onClick={() => setAiPanelOpen(false)}><XMarkIcon className="w-4 h-4" /></button>
+          <button className="btn-ghost p-1" onClick={() => setActiveRightPanel(null)}><XMarkIcon className="w-4 h-4" /></button>
         </div>
       </div>
 

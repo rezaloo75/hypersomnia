@@ -39,6 +39,11 @@ export interface Folder {
   name: string
   parentId?: string
   sortOrder: number
+  variables?: Record<string, string>
+  kongCpType?: string
+  kongCpEndpoint?: string
+  kongRegion?: string
+  kongDebug?: { enabled: boolean; token: string }
 }
 
 export interface Request {
@@ -53,13 +58,6 @@ export interface Request {
   auth: Auth
   settings: RequestSettings
   sortOrder: number
-}
-
-export interface Environment {
-  id: string
-  name: string
-  variables: Record<string, string>
-  parentId?: string
 }
 
 export interface ResponseData {
@@ -91,14 +89,14 @@ export interface AIMessage {
   content: string
 }
 
-export type AIOperationType = 'create_request' | 'update_request' | 'create_folder' | 'set_env_vars' | 'delete_request'
+export type AIOperationType = 'create_request' | 'update_request' | 'create_folder' | 'set_folder_vars' | 'delete_request'
 
 export interface AIOperation {
   op: AIOperationType
   id?: string
   data?: Partial<Request>
   vars?: Record<string, string>
-  environmentId?: string
+  folderId?: string
 }
 
 export interface AIResponse {
@@ -111,5 +109,4 @@ export interface DataExport {
   exportedAt: string
   folders: Folder[]
   requests: Request[]
-  environments: Environment[]
 }

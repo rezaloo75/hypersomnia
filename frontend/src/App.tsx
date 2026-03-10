@@ -19,7 +19,7 @@ function App() {
             <path fillRule="evenodd" clipRule="evenodd" d="M16.181 4.61C22.471 4.61 27.571 9.71 27.571 16C27.571 22.29 22.471 27.39 16.181 27.39C9.89 27.39 4.791 22.29 4.791 16C4.791 14.463 5.096 12.997 5.648 11.659C6.454 12.756 7.754 13.469 9.22 13.469C11.667 13.469 13.65 11.486 13.65 9.04C13.65 7.573 12.937 6.273 11.839 5.467C13.177 4.915 14.644 4.61 16.181 4.61Z" fill="#6fdc0e"/>
           </svg>
           <span className="font-bold text-sm tracking-wide" style={{ color: '#6fdc0e' }}>Hypersomnia</span>
-          <span className="text-xs px-1.5 py-0.5 rounded text-gray-400" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }}>v0.2</span>
+          <span className="text-xs px-1.5 py-0.5 rounded text-gray-400" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }}>v0.3</span>
         </div>
 
         <div className="flex-1" />

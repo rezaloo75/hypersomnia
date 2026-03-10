@@ -19,12 +19,20 @@ function tryFormatJson(body: string): { formatted: string; isJson: boolean } {
   }
 }
 
+function detectHtml(body: string, contentType: string): boolean {
+  if (/text\/html/i.test(contentType)) return true
+  const t = body.trimStart()
+  return /^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t)
+}
+
 export function BodyViewer({ execution }: Props) {
   const [format, setFormat] = useState<Format>('pretty')
   const [copied, setCopied] = useState(false)
 
   const { body } = execution.response
+  const contentType = (execution.response.headers?.['content-type'] ?? '')
   const { formatted, isJson } = tryFormatJson(body)
+  const isHtml = !isJson && detectHtml(body, contentType)
 
   const displayBody = format === 'pretty' && isJson ? formatted : body
 
@@ -52,7 +60,7 @@ export function BodyViewer({ execution }: Props) {
             </button>
           ))}
         </div>
-        {!isJson && format === 'pretty' && (
+        {!isJson && !isHtml && format === 'pretty' && (
           <span className="text-xs text-gray-500">(not JSON)</span>
         )}
         <div className="flex-1" />
@@ -61,7 +69,7 @@ export function BodyViewer({ execution }: Props) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-hidden">
         {format === 'pretty' && isJson ? (
           <CodeMirror
             value={displayBody}
@@ -70,10 +78,19 @@ export function BodyViewer({ execution }: Props) {
             extensions={[json()]}
             editable={false}
           />
+        ) : format === 'pretty' && isHtml ? (
+          <iframe
+            srcDoc={body}
+            sandbox="allow-same-origin allow-popups"
+            title="HTML Preview"
+            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+          />
         ) : (
-          <pre className="p-3 text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
-            {displayBody}
-          </pre>
+          <div className="overflow-auto h-full">
+            <pre className="p-3 text-xs text-gray-300 font-mono whitespace-pre-wrap break-all">
+              {displayBody}
+            </pre>
+          </div>
         )}
       </div>
     </div>

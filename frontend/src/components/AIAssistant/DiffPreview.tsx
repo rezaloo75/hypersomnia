@@ -1,6 +1,7 @@
 import type React from 'react'
 import { PlusCircleIcon, PencilSquareIcon, FolderPlusIcon, KeyIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
+import { getTopLevelFolder } from '../../utils/folders'
 import type { AIResponse, AIOperation } from '../../types'
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export function DiffPreview({ response, onApply, onDismiss }: Props) {
-  const { createRequest, updateRequest, createFolder, updateEnvironment, environments, activeEnvironmentId } = useWorkspaceStore()
+  const { createRequest, updateRequest, createFolder, updateFolder } = useWorkspaceStore()
 
   function applyOperation(op: AIOperation) {
     switch (op.op) {
@@ -37,14 +38,16 @@ export function DiffPreview({ response, onApply, onDismiss }: Props) {
         }
         break
 
-      case 'set_env_vars':
+      case 'set_folder_vars':
         if (op.vars) {
-          const envId = op.environmentId ?? activeEnvironmentId
-          if (envId) {
-            const env = environments.find(e => e.id === envId)
-            if (env) {
-              updateEnvironment(envId, {
-                variables: { ...env.variables, ...op.vars }
+          const { requests, folders, activeRequestId } = useWorkspaceStore.getState()
+          const targetFolderId = op.folderId
+            ?? getTopLevelFolder(activeRequestId, requests, folders)?.id
+          if (targetFolderId) {
+            const folder = folders.find(f => f.id === targetFolderId)
+            if (folder) {
+              updateFolder(targetFolderId, {
+                variables: { ...(folder.variables ?? {}), ...op.vars }
               })
             }
           }
@@ -58,9 +61,8 @@ export function DiffPreview({ response, onApply, onDismiss }: Props) {
     onApply()
   }
 
-  function applyOne(op: AIOperation, index: number) {
+  function applyOne(op: AIOperation) {
     applyOperation(op)
-    // If all ops applied individually, dismiss
     if (response.operations.length === 1) onApply()
   }
 
@@ -73,7 +75,7 @@ export function DiffPreview({ response, onApply, onDismiss }: Props) {
 
       <div className="space-y-2">
         {response.operations.map((op, i) => (
-          <OperationCard key={i} op={op} onApply={() => applyOne(op, i)} />
+          <OperationCard key={i} op={op} onApply={() => applyOne(op)} />
         ))}
       </div>
 
@@ -118,7 +120,7 @@ function getOperationLabel(op: AIOperation): string {
     case 'create_request': return `Create request: ${op.data?.name ?? 'New Request'}`
     case 'update_request': return `Update request`
     case 'create_folder': return `Create folder: ${op.data?.name ?? 'New Folder'}`
-    case 'set_env_vars': return `Set environment variables`
+    case 'set_folder_vars': return `Set folder variables`
     case 'delete_request': return `Delete request`
     default: return op.op
   }
@@ -128,8 +130,8 @@ function getOperationIcon(op: AIOperation): React.ReactNode {
   switch (op.op) {
     case 'create_request': return <PlusCircleIcon className="w-4 h-4 text-green-400" />
     case 'update_request': return <PencilSquareIcon className="w-4 h-4 text-blue-400" />
-    case 'create_folder':  return <FolderPlusIcon className="w-4 h-4 text-yellow-400" />
-    case 'set_env_vars':   return <KeyIcon className="w-4 h-4 text-purple-400" />
+    case 'create_folder':  return <FolderPlusIcon className="w-4 h-4" style={{ color: '#6fdc0e' }} />
+    case 'set_folder_vars': return <KeyIcon className="w-4 h-4 text-purple-400" />
     case 'delete_request': return <TrashIcon className="w-4 h-4 text-red-400" />
     default:               return <Cog6ToothIcon className="w-4 h-4 text-gray-400" />
   }

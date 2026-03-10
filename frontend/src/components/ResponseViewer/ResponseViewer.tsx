@@ -34,14 +34,23 @@ export function ResponseViewer() {
     window.addEventListener('mouseup', onUp)
   }, [historyHeight])
 
-  const kongDebugHeader = currentExecution?.response.headers?.[KONG_DEBUG_HEADER]
+  const headers = currentExecution?.response.headers ?? {}
+  const kongDebugHeader = headers[KONG_DEBUG_HEADER]
+  const serverHeader = headers['server'] ?? ''
+  const viaHeader = headers['via'] ?? ''
+  const isKongServer = serverHeader.toLowerCase().startsWith('kong')
+  const isKongVia = /kong\//i.test(viaHeader)
+  const proxyLatency = headers['x-kong-proxy-latency'] ? Number(headers['x-kong-proxy-latency']) : undefined
+  const upstreamLatency = headers['x-kong-upstream-latency'] ? Number(headers['x-kong-upstream-latency']) : undefined
+  const kongRequestId = headers['x-kong-request-id']
+  const showKongTab = isKongServer || isKongVia || !!kongDebugHeader || !!proxyLatency
 
-  // If on kong tab but new response has no debug header, fall back to body
+  // If on kong tab but no longer a Kong response, fall back to body
   useEffect(() => {
-    if (activeResponseTab === 'kong' && !kongDebugHeader) {
+    if (activeResponseTab === 'kong' && !showKongTab) {
       setActiveResponseTab('body')
     }
-  }, [currentExecution, kongDebugHeader, activeResponseTab, setActiveResponseTab])
+  }, [currentExecution, showKongTab, activeResponseTab, setActiveResponseTab])
 
   if (!currentExecution) {
     return (
@@ -94,7 +103,7 @@ export function ResponseViewer() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 flex-shrink-0 bg-gray-950">
-        {(['body', 'headers', 'debug'] as const).map(tab => (
+        {(['body', 'headers', 'details'] as const).map(tab => (
           <button
             key={tab}
             className={`tab-btn capitalize ${activeResponseTab === tab ? 'tab-btn-active' : 'tab-btn-inactive'}`}
@@ -102,11 +111,16 @@ export function ResponseViewer() {
           >
             {tab}
             {tab === 'headers' && response.headers && (
-              <span className="ml-1 text-xs text-gray-500">({Object.keys(response.headers).length})</span>
+              <span
+                className="ml-1.5 inline-flex items-center justify-center tabular-nums"
+                style={{ background: '#1e2a1e', color: '#6fdc0e', fontSize: 10, fontWeight: 600, minWidth: 17, height: 17, paddingInline: 4, border: '1px solid rgba(111,220,14,0.2)', borderRadius: 3 }}
+              >
+                {Object.keys(response.headers).length}
+              </span>
             )}
           </button>
         ))}
-        {kongDebugHeader && (
+        {showKongTab && (
           <button
             className={`tab-btn ${activeResponseTab === 'kong' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
             onClick={() => setActiveResponseTab('kong')}
@@ -121,8 +135,16 @@ export function ResponseViewer() {
       <div className="flex-1 overflow-hidden">
         {activeResponseTab === 'body' && <BodyViewer execution={currentExecution} />}
         {activeResponseTab === 'headers' && <HeadersViewer headers={response.headers} />}
-        {activeResponseTab === 'debug' && <DebugViewer execution={currentExecution} />}
-        {activeResponseTab === 'kong' && kongDebugHeader && <KongDebugViewer header={kongDebugHeader} />}
+        {activeResponseTab === 'details' && <DebugViewer execution={currentExecution} />}
+        {activeResponseTab === 'kong' && showKongTab && (
+          <KongDebugViewer
+            header={kongDebugHeader}
+            server={isKongServer ? serverHeader : (isKongVia ? viaHeader : undefined)}
+            proxyLatency={proxyLatency}
+            upstreamLatency={upstreamLatency}
+            requestId={kongRequestId}
+          />
+        )}
       </div>
     </div>
   )

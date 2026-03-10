@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FolderPlusIcon, PlusIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { FolderPlusIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import type { Folder, Request } from '../../types'
@@ -8,7 +8,7 @@ import { RequestNode } from './RequestNode'
 import { OpenAPIImport } from './OpenAPIImport'
 
 export function WorkspaceTree() {
-  const { folders, requests, createFolder, createRequest } = useWorkspaceStore()
+  const { folders, requests, createFolder } = useWorkspaceStore()
   const { sidebarSearch } = useUIStore()
   const [showImport, setShowImport] = useState(false)
 
@@ -38,17 +38,6 @@ export function WorkspaceTree() {
     <div className="py-1">
       {/* Actions */}
       <div className="flex flex-col gap-1.5 px-2 mb-2">
-        <button
-          className="btn-secondary flex items-center justify-center gap-1.5 py-1.5 text-xs w-full"
-          title="New Request"
-          onClick={() => {
-            const name = prompt('Request name:') ?? 'New Request'
-            createRequest(name.trim() || 'New Request')
-          }}
-        >
-          <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>New Request</span>
-        </button>
         <div className="grid grid-cols-2 gap-1.5">
           <button
             className="flex items-center justify-center gap-1 py-1 rounded text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
@@ -60,7 +49,7 @@ export function WorkspaceTree() {
             }}
           >
             <FolderPlusIcon className="w-3 h-3 flex-shrink-0" />
-            <span>Folder</span>
+            <span>New Folder</span>
           </button>
           <button
             className="flex items-center justify-center gap-1 py-1 rounded text-xs text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-colors"
@@ -87,7 +76,7 @@ export function WorkspaceTree() {
           <FolderNode key={folder.id} folder={folder} depth={0} forceExpand={isSearching} />
         ))}
 
-      {/* Root requests */}
+      {/* Root requests (legacy — no folder) */}
       {visibleRootRequests
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map(request => (
@@ -100,16 +89,16 @@ export function WorkspaceTree() {
 
       {isEmpty && (
         <div className="flex flex-col items-center justify-center px-4 py-8 gap-4">
-          <p className="text-xs text-gray-500 text-center">No requests yet. Create your first request to get started.</p>
+          <p className="text-xs text-gray-500 text-center">Create a folder to get started. Requests must live inside a folder.</p>
           <button
             className="btn-secondary text-xs px-4 py-2 flex items-center gap-1.5"
             onClick={() => {
-              const name = prompt('Request name:') ?? 'New Request'
-              createRequest(name.trim() || 'New Request')
+              const name = prompt('Folder name:')
+              if (name?.trim()) createFolder(name.trim())
             }}
           >
-            <PlusIcon className="w-3.5 h-3.5" />
-            New Request
+            <FolderPlusIcon className="w-3.5 h-3.5" />
+            New Folder
           </button>
         </div>
       )}

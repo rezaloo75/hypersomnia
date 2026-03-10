@@ -12,7 +12,7 @@ import {
   REGION_LABELS,
   type KonnectRegion,
 } from '../../utils/konnectApi'
-import type { Folder, Request, Environment } from '../../types'
+import type { Folder, Request } from '../../types'
 
 const REGIONS = Object.keys(REGION_LABELS) as KonnectRegion[]
 
@@ -35,7 +35,6 @@ interface SyncProgress {
 
 interface SyncResult {
   controlPlanes: number
-  environments: number
   folders: number
   requests: number
   missingBaseUrl: string[]
@@ -46,7 +45,7 @@ interface Props {
 }
 
 export function KonnectModal({ onClose }: Props) {
-  const { importWorkspaceData, setActiveEnvironment } = useWorkspaceStore()
+  const { importWorkspaceData } = useWorkspaceStore()
 
   const [pat, setPat] = useState(() => storage.loadKonnectPat() ?? '')
   const [region, setRegion] = useState<KonnectRegion>(
@@ -103,17 +102,16 @@ export function KonnectModal({ onClose }: Props) {
     setResult(null)
     setProgress(null)
 
-    // Snapshot existing Konnect environments so we can preserve manually-set baseUrls
-    const existingEnvs = new Map(
-      useWorkspaceStore.getState().environments
-        .filter(e => e.id.startsWith('konnect-env-'))
-        .map(e => [e.id, e.variables])
+    // Snapshot existing Konnect CP folders so we can preserve manually-set baseUrls and debug settings
+    const existingFolders = new Map(
+      useWorkspaceStore.getState().folders
+        .filter(f => f.id.startsWith('konnect-cp-'))
+        .map(f => [f.id, f])
     )
 
     try {
       const cps = await listControlPlanes(token, region)
 
-      const environments: Environment[] = []
       const folders: Folder[] = []
       const requests: Request[] = []
       let totalRequests = 0
@@ -123,33 +121,41 @@ export function KonnectModal({ onClose }: Props) {
         const cp = cps[i]
         setProgress({ current: cp.name, done: i, total: cps.length })
 
-        // Environment for this control plane
-        const envId = `konnect-env-${cp.id}`
+        const cpFolderId = `konnect-cp-${cp.id}`
+
         let baseUrl = buildBaseUrl(cp)
+        let resolvedCpKind: 'serverless' | 'dedicated' | null = null
 
         // For cloud gateway CPs where proxy_urls is empty, try the v3 cloud-gateways API
         if (!baseUrl) {
           const geo = extractGeo(cp.config?.control_plane_endpoint)
           if (geo) {
-            baseUrl = await getCloudGatewayBaseUrl(token, cp.id, geo, cp.config?.control_plane_endpoint) ?? ''
+            const cgResult = await getCloudGatewayBaseUrl(token, cp.id, geo, cp.config?.control_plane_endpoint)
+            if (cgResult) {
+              baseUrl = cgResult.url ?? ''
+              resolvedCpKind = cgResult.cpKind
+            }
           }
         }
 
         // Fall back to any baseUrl the user manually set on a previous sync
-        if (!baseUrl) baseUrl = existingEnvs.get(envId)?.baseUrl ?? ''
+        const existingFolder = existingFolders.get(cpFolderId)
+        if (!baseUrl) baseUrl = existingFolder?.variables?.baseUrl ?? ''
         if (!baseUrl) missingBaseUrl.push(cp.name)
-        environments.push({
-          id: envId,
-          name: cp.name,
-          variables: { baseUrl },
-        })
 
-        // Top-level folder per control plane
-        const cpFolderId = `konnect-cp-${cp.id}`
+        // kongCpType: use v3 API kind when available; anything not identified as serverless/dedicated is hybrid
+        const kongCpType = resolvedCpKind ?? 'hybrid'
+
+        // Top-level folder per control plane, with baseUrl as a variable
         folders.push({
           id: cpFolderId,
           name: cp.name,
           sortOrder: i,
+          variables: { baseUrl },
+          kongCpType,
+          kongCpEndpoint: cp.config?.control_plane_endpoint,
+          kongRegion: region,
+          kongDebug: existingFolder?.kongDebug,
         })
 
         // Fetch services + routes in parallel
@@ -210,12 +216,7 @@ export function KonnectModal({ onClose }: Props) {
 
       setProgress({ current: '', done: cps.length, total: cps.length })
 
-      importWorkspaceData({ folders, requests, environments, idPrefix: 'konnect-' })
-
-      // Auto-select the first CP's environment so {{baseUrl}} resolves immediately
-      if (environments.length > 0) {
-        setActiveEnvironment(environments[0].id)
-      }
+      importWorkspaceData({ folders, requests, idPrefix: 'konnect-' })
 
       const now = new Date().toISOString()
       storage.saveKonnectLastSync(now)
@@ -223,7 +224,6 @@ export function KonnectModal({ onClose }: Props) {
 
       setResult({
         controlPlanes: cps.length,
-        environments: environments.length,
         folders: folders.filter(f => !f.parentId).length,
         requests: totalRequests,
         missingBaseUrl,
@@ -403,7 +403,7 @@ export function KonnectModal({ onClose }: Props) {
                 <CheckCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>
                   Synced <strong>{result.controlPlanes}</strong> control planes →{' '}
-                  <strong>{result.environments}</strong> environments,{' '}
+                  <strong>{result.folders}</strong> folders,{' '}
                   <strong>{result.requests}</strong> requests imported.
                 </span>
               </div>
@@ -412,8 +412,8 @@ export function KonnectModal({ onClose }: Props) {
                   style={{ background: '#1a1200', border: '1px solid #3a2a00', color: '#f59e0b' }}>
                   <ExclamationTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
-                    Serverless control planes don't expose their proxy URL via the Konnect API
-                    ({result.missingBaseUrl.join(', ')}). Open each environment in the sidebar,
+                    Hybrid control planes don't expose their proxy URL via the Konnect API
+                    ({result.missingBaseUrl.join(', ')}). Click the folder in the sidebar,
                     paste your gateway's proxy URL into the <code className="font-mono">baseUrl</code> variable,
                     and it will be preserved across re-syncs.
                   </span>

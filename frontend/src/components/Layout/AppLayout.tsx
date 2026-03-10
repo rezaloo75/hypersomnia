@@ -1,17 +1,23 @@
 import { useRef, useState, useCallback } from 'react'
-import { SparklesIcon } from '@heroicons/react/24/outline'
 import { Sidebar } from '../Sidebar/Sidebar'
 import { RequestEditor } from '../RequestEditor/RequestEditor'
 import { ResponseViewer } from '../ResponseViewer/ResponseViewer'
 import { AIAssistant } from '../AIAssistant/AIAssistant'
+import { FolderVariablesEditor } from '../FolderEditor/FolderVariablesEditor'
+import { RightNavRail } from './RightNavRail'
+import { KonnectRoutePanel } from '../KonnectPanel/KonnectRoutePanel'
 import { useUIStore } from '../../store/uiStore'
 
 export function AppLayout() {
-  const { sidebarWidth, setSidebarWidth, aiPanelOpen, toggleAiPanel } = useUIStore()
+  const { sidebarWidth, setSidebarWidth, activeRightPanel, activeFolderId } = useUIStore()
   const [responseHeight, setResponseHeight] = useState(320)
+  const [rightPanelWidth, setRightPanelWidth] = useState(() =>
+    parseInt(localStorage.getItem('hs_rightPanelWidth') ?? '320', 10)
+  )
 
   const sidebarDragRef = useRef(false)
   const responseDragRef = useRef(false)
+  const rightPanelDragRef = useRef(false)
 
   const handleSidebarMouseDown = useCallback(() => {
     sidebarDragRef.current = true
@@ -46,6 +52,26 @@ export function AppLayout() {
     window.addEventListener('mouseup', onUp)
   }, [responseHeight])
 
+  const handleRightPanelMouseDown = useCallback((e: React.MouseEvent) => {
+    rightPanelDragRef.current = true
+    const startX = e.clientX
+    const startW = rightPanelWidth
+    let currentW = startW
+    const onMove = (ev: MouseEvent) => {
+      if (!rightPanelDragRef.current) return
+      currentW = Math.max(240, Math.min(800, startW + (startX - ev.clientX)))
+      setRightPanelWidth(currentW)
+    }
+    const onUp = () => {
+      rightPanelDragRef.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      localStorage.setItem('hs_rightPanelWidth', String(currentW))
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [rightPanelWidth])
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Sidebar */}
@@ -58,9 +84,11 @@ export function AppLayout() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Request editor */}
+        {/* Request editor or folder variables editor */}
         <div className="flex-1 overflow-hidden">
-          <RequestEditor />
+          {activeFolderId
+            ? <FolderVariablesEditor folderId={activeFolderId} />
+            : <RequestEditor />}
         </div>
 
         {/* Response divider */}
@@ -75,29 +103,19 @@ export function AppLayout() {
         </div>
       </div>
 
-      {/* AI panel resize handle */}
-      {aiPanelOpen && <div className="resize-handle" />}
-
-      {/* AI panel */}
-      {aiPanelOpen && (
-        <div className="w-80 flex-shrink-0 overflow-hidden">
-          <AIAssistant />
-        </div>
+      {/* Right drawer */}
+      {activeRightPanel && (
+        <>
+          <div className="resize-handle" onMouseDown={handleRightPanelMouseDown} />
+          <div style={{ width: rightPanelWidth, flexShrink: 0 }} className="overflow-hidden">
+            {activeRightPanel === 'ai' && <AIAssistant />}
+            {activeRightPanel === 'kong' && <KonnectRoutePanel />}
+          </div>
+        </>
       )}
 
-      {/* AI toggle button (when closed) */}
-      {!aiPanelOpen && (
-        <button
-          className="fixed bottom-4 right-4 rounded-full w-10 h-10 flex items-center justify-center shadow-lg transition-colors z-50 font-bold"
-          style={{ background: '#3d9108', color: '#f0fde4' }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#52b80a')}
-          onMouseLeave={e => (e.currentTarget.style.background = '#3d9108')}
-          onClick={toggleAiPanel}
-          title="Open AI Assistant"
-        >
-          <SparklesIcon className="w-5 h-5" />
-        </button>
-      )}
+      {/* Right nav rail */}
+      <RightNavRail />
     </div>
   )
 }

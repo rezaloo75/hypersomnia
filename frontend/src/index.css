@@ -7,6 +7,10 @@
     box-sizing: border-box;
   }
 
+  input[type="checkbox"] {
+    accent-color: #6fdc0e;
+  }
+
   html, body, #root {
     height: 100%;
     margin: 0;
@@ -69,7 +73,6 @@
     border: 1px solid #2a2a2a;
     border-radius: 4px;
     padding: 6px 8px;
-    font-size: 0.875rem;
     color: #e5e5e5;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;

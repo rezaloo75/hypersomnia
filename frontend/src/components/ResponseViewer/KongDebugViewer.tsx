@@ -17,7 +17,11 @@ type DebugOutput = {
 }
 
 interface Props {
-  header: string
+  header?: string
+  server?: string
+  proxyLatency?: number
+  upstreamLatency?: number
+  requestId?: string
 }
 
 type UUIDInstance = { id: string; time: number }
@@ -91,82 +95,127 @@ function niceTicks(totalMs: number): number[] {
   return ticks
 }
 
-export function KongDebugViewer({ header }: Props) {
+function parseKongServer(server: string): { version: string; edition: string | null } {
+  const rest = server.slice(server.toLowerCase().indexOf('kong/') + 5)
+  const match = rest.match(/^([\d.]+)(?:-(.+))?$/)
+  if (!match) return { version: rest, edition: null }
+  return { version: match[1], edition: match[2] ?? null }
+}
+
+function formatEdition(edition: string): string {
+  return edition.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+export function KongDebugViewer({ header, server, proxyLatency, upstreamLatency, requestId }: Props) {
   const data = useMemo<DebugOutput | null>(() => {
+    if (!header) return null
     try { return JSON.parse(header) as DebugOutput }
     catch { return null }
   }, [header])
 
-  if (!data?.child) {
-    return <div className="p-4 text-xs text-gray-500">Could not parse Kong debug output.</div>
-  }
+  const serverInfo = server ? parseKongServer(server) : null
 
-  const allPhases = sortedEntries(data.child)
-  const upstreamTime = data.child['upstream']?.total_time ?? null
-  const totalTime = allPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
-
+  // Prefer precise values from debug trace; fall back to dedicated headers
+  const allPhases = data?.child ? sortedEntries(data.child) : []
   const gatewayPhases = allPhases.filter(([name]) => name !== 'upstream')
-  const gatewayTime = data.total_time_without_upstream
-    ?? gatewayPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0)
-  const rows = buildRows(gatewayPhases, 0, 0)
-  const ticks = niceTicks(gatewayTime)
+  const debugGatewayTime = data
+    ? (data.total_time_without_upstream ?? gatewayPhases.reduce((s, [, n]) => s + (n.total_time ?? 0), 0))
+    : null
+  const debugUpstreamTime = data?.child?.['upstream']?.total_time ?? null
 
-  const pct = (ms: number) => gatewayTime > 0 ? (ms / gatewayTime) * 100 : 0
+  const barKong     = debugGatewayTime  ?? proxyLatency    ?? null
+  const barUpstream = debugUpstreamTime ?? upstreamLatency ?? null
+  const barTotal    = (barKong ?? 0) + (barUpstream ?? 0)
+  const hasBar      = barTotal > 0
 
   return (
     <div className="h-full overflow-y-auto px-4 py-4 font-mono text-xs">
-      {/* Summary */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mb-5">
-        <span className="font-bold text-sm tracking-wide" style={{ color: NEON }}>
-          Kong Gateway Trace
-        </span>
-        {data.request_id && (
-          <span className="text-gray-600">id:{data.request_id}</span>
-        )}
-        {upstreamTime != null && (
-          <span className="text-gray-500">
-            upstream: <span className="text-gray-300">{fmtTime(upstreamTime)}</span>
-          </span>
-        )}
-        <span className="text-gray-500">
-          gateway overhead:{' '}
-          <span style={{ color: NEON }} className="font-semibold">{fmtTime(gatewayTime)}</span>
-        </span>
-        <span className="text-gray-500">
-          total: <span className="text-gray-300">{fmtTime(totalTime)}</span>
-        </span>
-      </div>
 
-      {/* Header row */}
-      <div className="flex items-end gap-2 mb-1 pb-1 border-b border-gray-800">
-        <div className="flex-shrink-0 text-gray-600" style={{ width: 196 }}>Phase / Action</div>
-        <div className="flex-1 relative" style={{ height: 20 }}>
-          {ticks.map(t => (
-            <span
-              key={t}
-              className="absolute bottom-0 text-gray-600 select-none"
-              style={{ left: `${pct(t)}%`, transform: 'translateX(-50%)', fontSize: 10 }}
-            >
-              {t === 0 ? '0' : fmtTime(t)}
-            </span>
-          ))}
-          {ticks.map(t => (
-            <span
-              key={`line-${t}`}
-              className="absolute bottom-0"
-              style={{ left: `${pct(t)}%`, width: 1, height: 5, background: 'rgba(255,255,255,0.12)' }}
-            />
-          ))}
+      {/* Server info + latency in one compact row */}
+      {(serverInfo || hasBar) && (
+        <div className="flex items-center gap-4 mb-5">
+          {serverInfo && (
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <span className="font-bold text-sm tracking-wide" style={{ color: NEON }}>Kong Gateway</span>
+              <span className="text-gray-400 font-mono">{serverInfo.version}</span>
+              {serverInfo.edition && (
+                <span className="px-1.5 py-0.5 rounded text-xs font-semibold"
+                  style={{ background: 'rgba(111,220,14,0.12)', color: NEON, border: '1px solid rgba(111,220,14,0.25)' }}>
+                  {formatEdition(serverInfo.edition)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {hasBar && (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span style={{ color: 'rgba(111,220,14,0.7)', fontSize: 10 }} className="flex-shrink-0">{fmtTime(barKong ?? 0)}</span>
+              <div className="flex rounded overflow-hidden flex-1" style={{ height: 16, background: '#1a1a1a', minWidth: 80 }}>
+                {barKong != null && (
+                  <div
+                    style={{
+                      width: `${(barKong / barTotal) * 100}%`,
+                      minWidth: barKong > 0 ? 4 : 0,
+                      background: 'rgba(111,220,14,0.35)',
+                      borderRight: '1px solid rgba(111,220,14,0.5)',
+                    }}
+                    title={`Kong: ${fmtTime(barKong)}`}
+                  />
+                )}
+                {barUpstream != null && (
+                  <div className="flex-1"
+                    style={{ background: 'rgba(99,102,241,0.25)' }}
+                    title={`Upstream: ${fmtTime(barUpstream)}`}
+                  />
+                )}
+              </div>
+              <span style={{ color: 'rgba(165,180,252,0.7)', fontSize: 10 }} className="flex-shrink-0">{fmtTime(barUpstream ?? 0)}</span>
+              <span style={{ fontSize: 10 }} className="flex-shrink-0">
+                <span style={{ color: NEON }}>Kong</span>
+                <span style={{ color: '#374151' }}> / Upstream</span>
+              </span>
+              {(data?.request_id ?? requestId) && (
+                <span className="text-gray-600 truncate" style={{ fontSize: 10 }} title={data?.request_id ?? requestId}>id:{data?.request_id ?? requestId}</span>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex-shrink-0 w-16 text-right text-gray-600">Time</div>
-      </div>
+      )}
 
-      {/* Rows */}
-      <div>
-        {rows.map((row, i) => (
-          <TraceRow key={i} row={row} pct={pct} gatewayTime={gatewayTime} />
-        ))}
-      </div>
+      {/* Debug trace */}
+      {data?.child && (() => {
+        const rows = buildRows(gatewayPhases, 0, 0)
+        const ticks = niceTicks(debugGatewayTime ?? 0)
+        const pct = (ms: number) => (debugGatewayTime ?? 0) > 0 ? (ms / debugGatewayTime!) * 100 : 0
+
+        return (
+          <>
+            <div className="flex items-end gap-2 mb-1 pb-1 border-b border-gray-800">
+              <div className="flex-shrink-0 text-gray-600" style={{ width: 196 }}>Phase / Action</div>
+              <div className="flex-1 relative" style={{ height: 20 }}>
+                {ticks.map(t => (
+                  <span key={t} className="absolute bottom-0 text-gray-600 select-none"
+                    style={{ left: `${pct(t)}%`, transform: 'translateX(-50%)', fontSize: 10 }}>
+                    {t === 0 ? '0' : fmtTime(t)}
+                  </span>
+                ))}
+                {ticks.map(t => (
+                  <span key={`line-${t}`} className="absolute bottom-0"
+                    style={{ left: `${pct(t)}%`, width: 1, height: 5, background: 'rgba(255,255,255,0.12)' }} />
+                ))}
+              </div>
+              <div className="flex-shrink-0 w-16 text-right text-gray-600">Time</div>
+            </div>
+
+            <div>
+              {rows.map((row, i) => (
+                <TraceRow key={i} row={row} pct={pct} gatewayTime={debugGatewayTime ?? 0} />
+              ))}
+            </div>
+          </>
+        )
+      })()}
+
     </div>
   )
 }

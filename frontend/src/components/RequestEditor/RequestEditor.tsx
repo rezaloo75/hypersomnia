@@ -9,24 +9,25 @@ import { AuthTab } from './AuthTab'
 import { BodyTab } from './BodyTab'
 import { executeRequest } from '../../utils/requestExecutor'
 import { buildCurl } from '../../utils/curlBuilder'
+import { getTopLevelFolder } from '../../utils/folders'
 
 type Tab = 'params' | 'headers' | 'auth' | 'body'
 
 export function RequestEditor() {
-  const { requests, environments, activeRequestId, activeEnvironmentId, addHistory, updateRequest } = useWorkspaceStore()
-  const { setSending, setCurrentExecution } = useUIStore()
+  const { requests, folders, activeRequestId, addHistory, updateRequest } = useWorkspaceStore()
+  const { setSending, setCurrentExecution, setActiveFolderId } = useUIStore()
   const [activeTab, setActiveTab] = useState<Tab>('params')
   const [copied, setCopied] = useState(false)
 
   const request = requests.find(r => r.id === activeRequestId)
-  const activeEnv = environments.find(e => e.id === activeEnvironmentId)
-  const variables = activeEnv?.variables ?? {}
+  const topLevelFolder = getTopLevelFolder(activeRequestId, requests, folders)
+  const variables = topLevelFolder?.variables ?? {}
 
   async function handleSend() {
     if (!request) return
     setSending(true)
     try {
-      const execution = await executeRequest(request, variables)
+      const execution = await executeRequest(request, variables, topLevelFolder)
       addHistory(execution)
       setCurrentExecution(execution)
     } finally {
@@ -94,7 +95,10 @@ export function RequestEditor() {
           >
             {tab.label}
             {tab.badge !== undefined && (
-              <span className="ml-1 text-xs rounded-full px-1.5 py-0.5 leading-none" style={{ background: '#3d9108', color: '#f0fde4' }}>
+              <span
+                className="ml-1.5 inline-flex items-center justify-center tabular-nums"
+                style={{ background: '#1e2a1e', color: '#6fdc0e', fontSize: 10, fontWeight: 600, minWidth: 17, height: 17, paddingInline: 4, border: '1px solid rgba(111,220,14,0.2)', borderRadius: 3 }}
+              >
                 {tab.badge}
               </span>
             )}
