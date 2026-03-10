@@ -250,6 +250,54 @@ export async function listServices(
   return results
 }
 
+export interface KonnectPortalApi {
+  id: string
+  name: string
+  description?: string
+}
+
+export interface KonnectApiImplementation {
+  id: string
+  service?: {
+    id: string
+    control_plane_id: string
+  }
+}
+
+/** List all APIs in the API Builder. */
+export async function listApis(
+  pat: string,
+  region: KonnectRegion,
+): Promise<KonnectPortalApi[]> {
+  const results: KonnectPortalApi[] = []
+  let pageAfter: string | undefined
+  do {
+    const params: Record<string, string> = { 'page[size]': '100' }
+    if (pageAfter) params['page[after]'] = pageAfter
+    const json = await konnectGet(pat, region, '/v3/apis', params) as {
+      data?: KonnectPortalApi[]
+      meta?: { next?: { cursor?: string } }
+    }
+    results.push(...(json.data ?? []))
+    pageAfter = json.meta?.next?.cursor ?? undefined
+  } while (pageAfter)
+  return results
+}
+
+/** List implementations for a given API. */
+export async function getApiImplementations(
+  pat: string,
+  region: KonnectRegion,
+  apiId: string,
+): Promise<KonnectApiImplementation[]> {
+  try {
+    const json = await konnectGet(pat, region, `/v3/apis/${apiId}/implementations`) as {
+      data?: KonnectApiImplementation[]
+    }
+    return json.data ?? []
+  } catch { return [] }
+}
+
 export async function listRoutes(
   pat: string,
   region: KonnectRegion,

@@ -15,9 +15,12 @@ import {
   getServiceDetail,
   getCpDetail,
   listAllPlugins,
+  listApis,
+  getApiImplementations,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
+  type KonnectPortalApi,
 } from '../../utils/konnectApi'
 
 const CP_TYPE_LABELS: Record<string, string> = {
@@ -465,6 +468,9 @@ export function KonnectRoutePanel() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null)
   const [showDeckModal, setShowDeckModal] = useState(false)
 
+  const [portalApis, setPortalApis] = useState<KonnectPortalApi[] | null>(null)
+  const [loadingPortalApis, setLoadingPortalApis] = useState(false)
+
   useEffect(() => {
     if (!ctxMenu) return
     const close = () => setCtxMenu(null)
@@ -484,8 +490,30 @@ export function KonnectRoutePanel() {
 
   useEffect(() => {
     if (isKonnect && request && topFolder) load()
-    else { setData(null); setNotFound(false); setError(null) }
+    else { setData(null); setNotFound(false); setError(null); setPortalApis(null) }
   }, [activeRequestId])
+
+  // When we have a service ID, separately look up matching Portal APIs
+  useEffect(() => {
+    const serviceId = data?.service?.id as string | undefined
+    if (!serviceId || !topFolder) { setPortalApis(null); return }
+    const pat = storage.loadKonnectPat()
+    if (!pat) return
+    const cpId = topFolder.id.replace('konnect-cp-', '')
+    const region = (topFolder.kongRegion ?? 'us') as KonnectRegion
+    setLoadingPortalApis(true)
+    setPortalApis(null)
+    listApis(pat, region).then(async apis => {
+      const matches: KonnectPortalApi[] = []
+      await Promise.all(apis.map(async api => {
+        const impls = await getApiImplementations(pat, region, api.id)
+        if (impls.some(impl => impl.service?.id === serviceId && impl.service?.control_plane_id === cpId)) {
+          matches.push(api)
+        }
+      }))
+      setPortalApis(matches)
+    }).catch(() => setPortalApis([])).finally(() => setLoadingPortalApis(false))
+  }, [data?.service?.id])
 
   async function load() {
     if (!request || !topFolder) return
@@ -612,6 +640,29 @@ export function KonnectRoutePanel() {
                 <p className="text-gray-600 py-1">No control plane data.</p>
               )}
             </Accordion>
+
+            {/* ── Portal APIs ── */}
+            {data?.service && (
+              <Accordion label="Portal APIs" count={portalApis?.length}>
+                {loadingPortalApis && (
+                  <div className="flex items-center gap-1.5 text-gray-600 py-1">
+                    <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Looking up APIs…</span>
+                  </div>
+                )}
+                {!loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
+                  <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
+                )}
+                {!loadingPortalApis && portalApis?.map(api => (
+                  <div key={api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
+                    <div className="font-semibold text-gray-200 truncate" style={{ fontSize: 11 }}>{api.name}</div>
+                    {api.description && (
+                      <div className="text-gray-500 mt-0.5 line-clamp-2" style={{ fontSize: 10 }}>{api.description}</div>
+                    )}
+                    <div className="font-mono text-gray-600 mt-1 truncate" style={{ fontSize: 9 }}>{api.id}</div>
+                  </div>
+                ))}
+              </Accordion>
+            )}
 
             {/* ── Gateway Configuration ── */}
             <Accordion
