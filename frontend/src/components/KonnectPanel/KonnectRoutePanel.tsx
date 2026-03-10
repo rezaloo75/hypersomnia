@@ -499,30 +499,26 @@ function AppRow({ entry, apiLookup }: { entry: AppEntry; apiLookup: ApiLookup })
   return (
     <div style={{ borderBottom: '1px solid #1a1a1a', padding: '5px 0' }}>
 
-      {/* Name + status */}
+      {/* Name · description + status on one line */}
       <div className="flex items-center gap-1.5 min-w-0">
         {app.status && <span style={statusStyle(app.status)}>{app.status.replace(/_/g, ' ')}</span>}
-        <span className="text-gray-200 font-semibold truncate" style={{ fontSize: 10 }}>{app.name}</span>
+        <span className="text-gray-200 font-semibold flex-shrink-0" style={{ fontSize: 10 }}>{app.name}</span>
+        {app.description && (
+          <span className="text-gray-600 truncate" style={{ fontSize: 9 }}>{app.description}</span>
+        )}
       </div>
 
-      {/* Developer */}
-      {devLine && (
+      {/* Developer + extra metadata on one line */}
+      {(devLine || extraParts.length > 0) && (
         <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-          <span className="text-gray-500 truncate" style={{ fontSize: 9 }}>{devLine}</span>
+          {devLine && <span className="text-gray-500 truncate" style={{ fontSize: 9 }}>{devLine}</span>}
           {app.developer?.status && app.developer.status !== 'active' && (
             <span style={statusStyle(app.developer.status)}>{app.developer.status.replace(/_/g, ' ')}</span>
           )}
+          {extraParts.length > 0 && (
+            <span className="text-gray-700 truncate flex-shrink-0" style={{ fontSize: 8 }}>{extraParts.join(' · ')}</span>
+          )}
         </div>
-      )}
-
-      {/* Description */}
-      {app.description && (
-        <div className="text-gray-600 truncate" style={{ fontSize: 9, marginTop: 1 }}>{app.description}</div>
-      )}
-
-      {/* Extra metadata (created, reference_id, redirect_uris, labels) — single dim line */}
-      {extraParts.length > 0 && (
-        <div className="text-gray-700 truncate" style={{ fontSize: 8, marginTop: 1 }}>{extraParts.join(' · ')}</div>
       )}
 
       {/* Registrations — one row each */}
@@ -899,38 +895,48 @@ export function KonnectRoutePanel() {
                   <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
                 )}
                 {!loading && !loadingPortalApis && portalApis?.map(entry => (
-                  <div key={entry.api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
-                    <div className="font-semibold text-gray-200 truncate" style={{ fontSize: 11 }}>{entry.api.name}</div>
-                    {entry.api.description && (
-                      <div className="text-gray-500 mt-1" style={{ fontSize: 10, lineHeight: '14px' }}>{entry.api.description}</div>
-                    )}
+                  <div key={entry.api.id} style={{ borderBottom: '1px solid #1a1a1a', padding: '5px 0' }}>
+
+                    {/* API name · description on one line */}
+                    <div className="flex items-baseline gap-1.5 min-w-0">
+                      <span className="font-semibold text-gray-200 flex-shrink-0" style={{ fontSize: 10 }}>{entry.api.name}</span>
+                      {entry.api.description && (
+                        <span className="text-gray-600 truncate" style={{ fontSize: 9 }}>{entry.api.description}</span>
+                      )}
+                    </div>
+
                     {entry.portals.map(p => (
-                      <div key={p.id} style={{ marginTop: 6 }}>
-                        <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 3 }}>Published on</div>
-                        <a
-                          href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between gap-2 px-2 py-1 rounded"
-                          style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 6, textDecoration: 'none' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.1)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.05)')}
-                        >
-                          <span className="truncate">{p.name}</span>
-                          <svg viewBox="0 0 12 12" fill="none" style={{ width: 10, height: 10, flexShrink: 0 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </a>
+                      <div key={p.id}>
+                        {/* Portal link + app count on one line */}
+                        <div className="flex items-center gap-2 min-w-0 mt-1">
+                          <a
+                            href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 flex-shrink-0"
+                            style={{ fontSize: 9, color: NEON, textDecoration: 'none' }}
+                            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                          >
+                            <svg viewBox="0 0 12 12" fill="none" style={{ width: 8, height: 8 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            {p.name}
+                          </a>
+                          {p.appEntries.length > 0 && (
+                            <span className="text-gray-700" style={{ fontSize: 8 }}>· {p.appEntries.length} app{p.appEntries.length > 1 ? 's' : ''}</span>
+                          )}
+                        </div>
+
                         {p.appEntries.length > 0 && (
-                          <>
-                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 2 }}>Applications ({p.appEntries.length})</div>
+                          <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #1e1e1e' }}>
                             {p.appEntries.map(appEntry => (
                               <AppRow key={appEntry.app.id} entry={appEntry} apiLookup={apiLookup} />
                             ))}
-                          </>
+                          </div>
                         )}
                       </div>
                     ))}
+
                     {entry.portals.length === 0 && (
-                      <div className="text-gray-600 mt-1" style={{ fontSize: 10 }}>Not published on any portal.</div>
+                      <div className="text-gray-700 mt-1" style={{ fontSize: 9 }}>Not published on any portal.</div>
                     )}
                   </div>
                 ))}
