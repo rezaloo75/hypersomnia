@@ -686,22 +686,18 @@ export function KonnectRoutePanel() {
         {!request && <p className="text-gray-600 text-center mt-8 px-4">No request selected.</p>}
         {request && !isKonnect && <p className="text-gray-600 text-center mt-8 px-4">This request is not under a Konnect control plane.</p>}
 
-        {loading && (
-          <div className="flex items-center justify-center gap-2 text-gray-500 mt-8">
-            <ArrowPathIcon className="w-4 h-4 animate-spin" /><span>Loading…</span>
-          </div>
-        )}
-
-        {error && !loading && (
+        {error && (
           <div className="m-3 p-2 rounded" style={{ background: '#1a0a0a', border: '1px solid #3a1a1a', color: '#f87171' }}>{error}</div>
         )}
 
-        {!loading && request && isKonnect && (
+        {request && isKonnect && (
           <div>
 
             {/* ── Control Plane ── */}
             <Accordion label="Control Plane" storageKey="konnect_cp">
-              {data?.cp ? (
+              {loading ? (
+                <div className="flex items-center gap-1.5 text-gray-600 py-1"><ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Loading…</span></div>
+              ) : data?.cp ? (
                 <CpTable
                   obj={data.cp}
                   extraRows={[
@@ -716,6 +712,10 @@ export function KonnectRoutePanel() {
 
             {/* ── Gateway Configuration ── */}
             <Accordion label="Gateway Configuration" storageKey="konnect_gw">
+              {loading ? (
+                <div className="flex items-center gap-1.5 text-gray-600 py-1"><ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Loading…</span></div>
+              ) : (
+              <>
               {notFound && (
                 <div className="mb-2 p-2 rounded" style={{ background: '#1a1200', border: '1px solid #3a2a00', color: '#f59e0b' }}>
                   <p className="font-semibold">No matching route found</p>
@@ -750,6 +750,8 @@ export function KonnectRoutePanel() {
 
               {!notFound && !yamlText && data !== null && (
                 <p className="text-gray-600 py-1">No gateway configuration data.</p>
+              )}
+              </>
               )}
             </Accordion>
 
