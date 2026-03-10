@@ -271,6 +271,19 @@ export interface KonnectPortal {
   default_domain?: string | null
 }
 
+export interface KonnectPortalApplication {
+  id: string
+  name: string
+  description?: string | null
+  status?: string
+  created_at?: string
+  developer?: {
+    id?: string
+    full_name?: string | null
+    email?: string | null
+  } | null
+}
+
 export interface KonnectApiImplementation {
   id: string
   api_id?: string
@@ -362,6 +375,29 @@ export async function listApiImplementations(
       results.push(...(json.data ?? []))
       pageAfter = json.meta?.next?.cursor ?? undefined
     } while (pageAfter)
+    return results
+  } catch { return [] }
+}
+
+/** List all applications for a portal. */
+export async function listPortalApplications(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+): Promise<KonnectPortalApplication[]> {
+  try {
+    const results: KonnectPortalApplication[] = []
+    let offset: string | undefined
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' }
+      if (offset) params['page[after]'] = offset
+      const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params) as {
+        data?: KonnectPortalApplication[]
+        meta?: { next?: { cursor?: string } }
+      }
+      results.push(...(json.data ?? []))
+      offset = json.meta?.next?.cursor ?? undefined
+    } while (offset)
     return results
   } catch { return [] }
 }

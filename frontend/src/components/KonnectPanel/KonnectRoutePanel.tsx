@@ -19,10 +19,12 @@ import {
   listApiImplementations,
   listApiPublications,
   listPortals,
+  listPortalApplications,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
   type KonnectPortalApi,
+  type KonnectPortalApplication,
 } from '../../utils/konnectApi'
 
 const CP_TYPE_LABELS: Record<string, string> = {
@@ -444,9 +446,16 @@ function CpTable({ obj, extraRows }: { obj: Record<string, unknown>; extraRows?:
 
 // ── Panel data ─────────────────────────────────────────────────────────────────
 
+interface PortalEntry {
+  id: string
+  name: string
+  url: string
+  applications: KonnectPortalApplication[]
+}
+
 interface PortalApiEntry {
   api: KonnectPortalApi
-  portals: Array<{ name: string; url: string }>
+  portals: PortalEntry[]
 }
 
 interface PanelData {
@@ -517,12 +526,12 @@ export function KonnectRoutePanel() {
       listApis(pat, region),
       listApiPublications(pat, region),
       listPortals(pat, region),
-    ]).then(([impls, apis, publications, portals]) => {
+    ]).then(async ([impls, apis, publications, portals]) => {
       const apiMap = new Map(apis.map(a => [a.id, a]))
       const portalMap = new Map(portals.map(p => [p.id, p]))
 
-      // Build api_id → portal entries from publications
-      const apiPortals = new Map<string, Array<{ name: string; url: string }>>()
+      // Build api_id → portal entries (with IDs) from publications
+      const apiPortals = new Map<string, Array<{ id: string; name: string; url: string }>>()
       for (const pub of publications) {
         if (!pub.api_id || !pub.portal_id) continue
         const portal = portalMap.get(pub.portal_id)
@@ -531,7 +540,7 @@ export function KonnectRoutePanel() {
         if (!domain) continue
         const url = domain.startsWith('http') ? domain : `https://${domain}`
         const list = apiPortals.get(pub.api_id) ?? []
-        list.push({ name: portal.name, url })
+        list.push({ id: pub.portal_id, name: portal.name, url })
         apiPortals.set(pub.api_id, list)
       }
 
@@ -542,10 +551,26 @@ export function KonnectRoutePanel() {
           .filter(Boolean) as string[]
       )
 
+      // Fetch applications for each distinct portal that hosts a matched API
+      const matchedPortalIds = new Set<string>()
+      for (const apiId of matchedApiIds) {
+        for (const p of apiPortals.get(apiId) ?? []) matchedPortalIds.add(p.id)
+      }
+      const appsByPortal = new Map<string, KonnectPortalApplication[]>()
+      await Promise.all([...matchedPortalIds].map(async portalId => {
+        const apps = await listPortalApplications(pat, region, portalId)
+        appsByPortal.set(portalId, apps)
+      }))
+
       const entries = [...matchedApiIds]
         .map(id => {
           const api = apiMap.get(id)
-          return api ? { api, portals: apiPortals.get(id) ?? [] } : null
+          if (!api) return null
+          const portalsForApi: PortalEntry[] = (apiPortals.get(id) ?? []).map(p => ({
+            ...p,
+            applications: appsByPortal.get(p.id) ?? [],
+          }))
+          return { api, portals: portalsForApi }
         })
         .filter(Boolean) as PortalApiEntry[]
 
@@ -738,25 +763,58 @@ export function KonnectRoutePanel() {
                     {entry.api.description && (
                       <div className="text-gray-500 mt-1" style={{ fontSize: 10, lineHeight: '14px' }}>{entry.api.description}</div>
                     )}
-                    {entry.portals.length > 0 && (
-                      <div style={{ marginTop: 6 }}>
+                    {entry.portals.map(p => (
+                      <div key={p.id} style={{ marginTop: 6 }}>
                         <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 3 }}>Published on</div>
-                        {entry.portals.map(p => (
-                          <a
-                            key={p.url}
-                            href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors"
-                            style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 3, textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.1)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.05)')}
-                          >
-                            <span className="truncate">{p.name}</span>
-                            <svg viewBox="0 0 12 12" fill="none" style={{ width: 10, height: 10, flexShrink: 0 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          </a>
-                        ))}
+                        <a
+                          href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between gap-2 px-2 py-1 rounded transition-colors"
+                          style={{ fontSize: 10, color: NEON, background: 'rgba(111,220,14,0.05)', border: '1px solid rgba(111,220,14,0.12)', marginBottom: 3, textDecoration: 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.1)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.05)')}
+                        >
+                          <span className="truncate">{p.name}</span>
+                          <svg viewBox="0 0 12 12" fill="none" style={{ width: 10, height: 10, flexShrink: 0 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </a>
+                        {p.applications.length > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 3 }}>Applications ({p.applications.length})</div>
+                            {p.applications.map(app => (
+                              <div
+                                key={app.id}
+                                style={{ background: '#111111', border: '1px solid #1e1e1e', borderRadius: 3, padding: '4px 7px', marginBottom: 3 }}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-gray-200 truncate font-medium" style={{ fontSize: 10 }}>{app.name}</span>
+                                  {app.status && (
+                                    <span style={{
+                                      fontSize: 8, fontWeight: 600, padding: '1px 4px', borderRadius: 2, flexShrink: 0,
+                                      background: app.status === 'approved' ? 'rgba(111,220,14,0.12)' : app.status === 'pending_creation' ? 'rgba(245,158,11,0.12)' : 'rgba(248,113,113,0.12)',
+                                      color: app.status === 'approved' ? NEON : app.status === 'pending_creation' ? '#f59e0b' : '#f87171',
+                                      border: `1px solid ${app.status === 'approved' ? 'rgba(111,220,14,0.2)' : app.status === 'pending_creation' ? 'rgba(245,158,11,0.2)' : 'rgba(248,113,113,0.2)'}`,
+                                    }}>
+                                      {app.status.replace(/_/g, ' ')}
+                                    </span>
+                                  )}
+                                </div>
+                                {app.developer?.email && (
+                                  <div className="text-gray-600 truncate mt-0.5" style={{ fontSize: 9 }}>
+                                    {app.developer.full_name ? `${app.developer.full_name} · ` : ''}{app.developer.email}
+                                  </div>
+                                )}
+                                {app.description && (
+                                  <div className="text-gray-600 mt-0.5" style={{ fontSize: 9, lineHeight: '13px' }}>{app.description}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                    ))}
+                    {entry.portals.length === 0 && (
+                      <div className="text-gray-600 mt-1" style={{ fontSize: 10 }}>Not published on any portal.</div>
                     )}
                   </div>
                 ))}
