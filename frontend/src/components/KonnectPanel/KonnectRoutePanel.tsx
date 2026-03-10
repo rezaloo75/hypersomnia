@@ -900,7 +900,7 @@ export function KonnectRoutePanel() {
                 {!loading && !loadingPortalApis && portalApis && portalApis.length > 0 && (() => {
                   // Flatten into table rows
                   type ApiRow = { key: string; name: string; description?: string; slug?: string; portalName: string | null; portalUrl: string | null }
-                  type AppRow = { key: string; name: string; description?: string | null; date?: string; owner?: string | null; status?: string }
+                  type AppRow = { key: string; apiName: string; name: string; description?: string | null; date?: string; owner?: string | null; status?: string }
                   const apiRows: ApiRow[] = portalApis.flatMap(entry =>
                     (entry.portals.length > 0
                       ? entry.portals.map(p => ({ key: `${entry.api.id}-${p.id}`, name: entry.api.name, description: entry.api.description, slug: entry.api.slug, portalName: p.name as string | null, portalUrl: p.url as string | null }))
@@ -909,16 +909,26 @@ export function KonnectRoutePanel() {
                   )
                   const appRows: AppRow[] = portalApis.flatMap(entry =>
                     entry.portals.flatMap(p =>
-                      p.appEntries.flatMap(ae =>
-                        ae.registrations.length > 0
-                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.ownerName, status: reg.status ?? ae.app.status }))
-                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.ownerName, status: ae.app.status }]
-                      )
+                      p.appEntries.flatMap(ae => {
+                        // Filter registrations to only those for this specific API
+                        const matchingRegs = ae.registrations.filter(reg =>
+                          reg.api?.id === entry.api.id ||
+                          reg.api_product?.id === entry.api.id ||
+                          (reg.api_product_version?.id != null && (apiLookup.get(entry.api.id)?.versions.has(reg.api_product_version.id) ?? false))
+                        )
+                        if (matchingRegs.length === 0) return []
+                        return matchingRegs.map(reg => ({
+                          key: `${entry.api.id}-${ae.app.id}-${reg.id}`,
+                          apiName: entry.api.name,
+                          name: ae.app.name,
+                          description: ae.app.description,
+                          date: reg.created_at,
+                          owner: ae.ownerName,
+                          status: reg.status ?? ae.app.status,
+                        }))
+                      })
                     )
                   )
-                  // De-duplicate app rows by key
-                  const seenAppKeys = new Set<string>()
-                  const uniqueAppRows = appRows.filter((r: AppRow) => { if (seenAppKeys.has(r.key)) return false; seenAppKeys.add(r.key); return true })
 
                   const TH = ({ children, width }: { children: React.ReactNode; width?: string }) => (
                     <th style={{ width, padding: '3px 6px', textAlign: 'left', fontWeight: 600, fontSize: 8, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #1e1e1e', whiteSpace: 'nowrap' }}>{children}</th>
@@ -958,22 +968,22 @@ export function KonnectRoutePanel() {
                       </table>
 
                       {/* Table 2: Applications */}
-                      {uniqueAppRows.length > 0 && (
+                      {appRows.length > 0 && (
                         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 10 }}>
                           <thead>
                             <tr>
-                              <TH width="22%">Application</TH>
-                              <TH width="22%">Description</TH>
-                              <TH width="18%">Registered</TH>
-                              <TH width="24%">Owner</TH>
-                              <TH width="14%">Status</TH>
+                              <TH width="20%">Application</TH>
+                              <TH width="20%">API</TH>
+                              <TH width="16%">Registered</TH>
+                              <TH width="28%">Owner</TH>
+                              <TH width="16%">Status</TH>
                             </tr>
                           </thead>
                           <tbody>
-                            {uniqueAppRows.map(row => (
+                            {appRows.map(row => (
                               <tr key={row.key}>
                                 <TD style={{ color: '#e5e7eb', fontWeight: 500 }}>{row.name}</TD>
-                                <TD>{row.description ?? '—'}</TD>
+                                <TD style={{ color: '#d1d5db' }}>{row.apiName}</TD>
                                 <TD>{fmtDate(row.date) ?? '—'}</TD>
                                 <TD>{row.owner ?? '—'}</TD>
                                 <TD style={{ overflow: 'visible', whiteSpace: 'normal' }}>
