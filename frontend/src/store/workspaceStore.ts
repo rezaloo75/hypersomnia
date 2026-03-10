@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useUIStore } from './uiStore'
 import { v4 as uuid } from 'uuid'
 import type {
   Folder, Request, RequestExecution,
@@ -159,10 +160,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return { history }
   }),
 
-  clearHistory: () => set(() => {
+  clearHistory: () => {
     storage.saveHistory([])
-    return { history: [] }
-  }),
+    localStorage.removeItem('hs_currentExecutionId')
+    useUIStore.getState().setCurrentExecution(null)
+    set({ history: [] })
+  },
 
   // — Import —
   importWorkspaceData: ({ folders, requests, idPrefix }) => set((s) => {
