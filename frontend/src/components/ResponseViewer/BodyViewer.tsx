@@ -3,7 +3,12 @@ import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import CodeMirror from '@uiw/react-codemirror'
 import { json } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { EditorView } from '@codemirror/view'
 import type { RequestExecution } from '../../types'
+
+const fontTheme = EditorView.theme({
+  '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: '12px', lineHeight: '18px' },
+})
 
 interface Props {
   execution: RequestExecution
@@ -75,7 +80,7 @@ export function BodyViewer({ execution }: Props) {
             value={displayBody}
             height="100%"
             theme={oneDark}
-            extensions={[json()]}
+            extensions={[json(), fontTheme]}
             editable={false}
           />
         ) : format === 'pretty' && isHtml ? (
