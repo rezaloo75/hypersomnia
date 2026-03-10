@@ -389,17 +389,19 @@ export async function listPortalApplications(
     const results: KonnectPortalApplication[] = []
     let offset: string | undefined
     do {
-      const params: Record<string, string> = { 'page[size]': '100' }
-      if (offset) params['page[after]'] = offset
-      const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params) as {
-        data?: KonnectPortalApplication[]
-        meta?: { next?: { cursor?: string } }
-      }
-      results.push(...(json.data ?? []))
-      offset = json.meta?.next?.cursor ?? undefined
+      const params: Record<string, string> = { size: '100' }
+      if (offset) params.offset = offset
+      const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params)
+      console.debug('[konnect] portal applications raw response', portalId, json)
+      const typed = json as { data?: KonnectPortalApplication[]; offset?: string }
+      results.push(...(typed.data ?? []))
+      offset = typed.offset
     } while (offset)
     return results
-  } catch { return [] }
+  } catch (e) {
+    console.error('[konnect] listPortalApplications failed', portalId, e)
+    return []
+  }
 }
 
 export async function listRoutes(

@@ -574,8 +574,9 @@ export function KonnectRoutePanel() {
         })
         .filter(Boolean) as PortalApiEntry[]
 
+      console.debug('[konnect] portal api entries', entries)
       setPortalApis(entries)
-    }).catch(() => setPortalApis([])).finally(() => setLoadingPortalApis(false))
+    }).catch((e) => { console.error('[konnect] portal apis failed', e); setPortalApis([]) }).finally(() => setLoadingPortalApis(false))
   }, [data?.service?.id])
 
   async function load() {
