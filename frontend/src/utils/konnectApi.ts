@@ -379,12 +379,32 @@ export async function listApiImplementations(
   } catch { return [] }
 }
 
-/** List all applications for a portal. */
+/** List all applications for a portal.
+ *  Tries the v3 portal endpoint first; falls back to v2 (legacy portals). */
 export async function listPortalApplications(
   pat: string,
   region: KonnectRegion,
   portalId: string,
 ): Promise<KonnectPortalApplication[]> {
+  // Try v3 endpoint first (used by newer Konnect orgs with v3 Dev Portal IDs)
+  try {
+    const results: KonnectPortalApplication[] = []
+    let pageAfter: string | undefined
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' }
+      if (pageAfter) params['page[after]'] = pageAfter
+      const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications`, params)
+      console.debug('[konnect] v3 portal applications raw response', portalId, json)
+      const typed = json as { data?: KonnectPortalApplication[]; meta?: { next?: { cursor?: string } } }
+      results.push(...(typed.data ?? []))
+      pageAfter = typed.meta?.next?.cursor ?? undefined
+    } while (pageAfter)
+    return results
+  } catch (e3) {
+    console.debug('[konnect] v3 portal applications failed, trying v2', portalId, e3)
+  }
+
+  // Fall back to v2 (legacy portal IDs)
   try {
     const results: KonnectPortalApplication[] = []
     let offset: string | undefined
@@ -392,14 +412,14 @@ export async function listPortalApplications(
       const params: Record<string, string> = { size: '100' }
       if (offset) params.offset = offset
       const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params)
-      console.debug('[konnect] portal applications raw response', portalId, json)
+      console.debug('[konnect] v2 portal applications raw response', portalId, json)
       const typed = json as { data?: KonnectPortalApplication[]; offset?: string }
       results.push(...(typed.data ?? []))
       offset = typed.offset
     } while (offset)
     return results
-  } catch (e) {
-    console.error('[konnect] listPortalApplications failed', portalId, e)
+  } catch (e2) {
+    console.error('[konnect] listPortalApplications both v3+v2 failed', portalId, e2)
     return []
   }
 }
