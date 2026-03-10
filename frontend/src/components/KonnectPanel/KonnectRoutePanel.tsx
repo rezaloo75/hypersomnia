@@ -476,123 +476,72 @@ function fmtDate(iso?: string | null): string | null {
   catch { return iso }
 }
 
-function AppCard({ entry, portalName, portalUrl, apiLookup }: {
-  entry: AppEntry
-  portalName: string
-  portalUrl: string
-  apiLookup: ApiLookup
-}) {
+function resolveRegNames(reg: KonnectAppRegistration, apiLookup: ApiLookup) {
+  const raw = reg as unknown as Record<string, unknown>
+  const apiId = reg.api?.id ?? reg.api_product?.id ?? raw['api_id'] as string | undefined ?? raw['api_product_id'] as string | undefined
+  const versionId = reg.api_product_version?.id ?? raw['api_product_version_id'] as string | undefined
+  const apiEntry = apiId ? apiLookup.get(apiId) : undefined
+  const apiName = reg.api?.name ?? reg.api_product?.name ?? apiEntry?.api.name ?? apiId ?? '—'
+  const versionName = reg.api_product_version?.name ?? (versionId ? apiEntry?.versions.get(versionId)?.name : undefined) ?? versionId
+  return { apiName, versionName }
+}
+
+function AppRow({ entry, apiLookup }: { entry: AppEntry; apiLookup: ApiLookup }) {
   const { app, registrations } = entry
-  const hasLabels = app.labels && Object.keys(app.labels).length > 0
+  const devLine = [app.developer?.full_name, app.developer?.email].filter(Boolean).join(' · ')
+  const extraParts = [
+    app.created_at ? fmtDate(app.created_at) : null,
+    app.reference_id ? `ref: ${app.reference_id}` : null,
+    app.redirect_uris?.length ? `${app.redirect_uris.length} redirect URI${app.redirect_uris.length > 1 ? 's' : ''}` : null,
+    app.labels && Object.keys(app.labels).length ? Object.entries(app.labels).map(([k, v]) => `${k}=${v}`).join(', ') : null,
+  ].filter(Boolean)
 
   return (
-    <div style={{ background: '#0d0d0d', border: '1px solid #222', borderRadius: 4, padding: '6px 8px', marginBottom: 5 }}>
+    <div style={{ borderBottom: '1px solid #1a1a1a', padding: '5px 0' }}>
 
       {/* Name + status */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="font-semibold text-gray-200 truncate" style={{ fontSize: 10 }}>{app.name}</span>
+      <div className="flex items-center gap-1.5 min-w-0">
         {app.status && <span style={statusStyle(app.status)}>{app.status.replace(/_/g, ' ')}</span>}
+        <span className="text-gray-200 font-semibold truncate" style={{ fontSize: 10 }}>{app.name}</span>
       </div>
+
+      {/* Developer */}
+      {devLine && (
+        <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
+          <span className="text-gray-500 truncate" style={{ fontSize: 9 }}>{devLine}</span>
+          {app.developer?.status && app.developer.status !== 'active' && (
+            <span style={statusStyle(app.developer.status)}>{app.developer.status.replace(/_/g, ' ')}</span>
+          )}
+        </div>
+      )}
 
       {/* Description */}
       {app.description && (
-        <div className="text-gray-500 mt-1" style={{ fontSize: 9, lineHeight: '13px' }}>{app.description}</div>
+        <div className="text-gray-600 truncate" style={{ fontSize: 9, marginTop: 1 }}>{app.description}</div>
       )}
 
-      {/* Developer */}
-      {app.developer && (
-        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Developer</div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {(app.developer.full_name || app.developer.email) && (
-              <span className="text-gray-300" style={{ fontSize: 9 }}>
-                {[app.developer.full_name, app.developer.email].filter(Boolean).join(' · ')}
-              </span>
-            )}
-            {app.developer.status && (
-              <span style={statusStyle(app.developer.status)}>{app.developer.status.replace(/_/g, ' ')}</span>
-            )}
-          </div>
-        </div>
+      {/* Extra metadata (created, reference_id, redirect_uris, labels) — single dim line */}
+      {extraParts.length > 0 && (
+        <div className="text-gray-700 truncate" style={{ fontSize: 8, marginTop: 1 }}>{extraParts.join(' · ')}</div>
       )}
 
-      {/* Portal */}
-      <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-        <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Portal</div>
-        <a
-          href={portalUrl} target="_blank" rel="noopener noreferrer"
-          style={{ fontSize: 9, color: NEON, textDecoration: 'none' }}
-          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-        >{portalName}</a>
-      </div>
-
-      {/* Details grid */}
-      <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-        {[
-          ['created', fmtDate(app.created_at)],
-          ['updated', fmtDate(app.updated_at)],
-          ['reference id', app.reference_id],
-        ].filter(([, v]) => v).map(([k, v]) => (
-          <div key={k as string} className="flex gap-2" style={{ padding: '1px 0' }}>
-            <span className="text-gray-600 flex-shrink-0 font-mono" style={{ fontSize: 9, minWidth: 76 }}>{k}</span>
-            <span className="text-gray-400 font-mono break-all" style={{ fontSize: 9 }}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Redirect URIs */}
-      {app.redirect_uris && app.redirect_uris.length > 0 && (
-        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Redirect URIs</div>
-          {app.redirect_uris.map(uri => (
-            <div key={uri} className="font-mono text-gray-400 break-all" style={{ fontSize: 9 }}>{uri}</div>
-          ))}
-        </div>
-      )}
-
-      {/* Labels */}
-      {hasLabels && (
-        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Labels</div>
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(app.labels!).map(([k, v]) => (
-              <span key={k} className="inline-flex items-center" style={{ background: '#0f1a0f', border: '1px solid rgba(111,220,14,0.18)', borderRadius: 3, overflow: 'hidden' }}>
-                <span style={{ padding: '1px 4px', fontSize: 8, color: '#6b9e6b', borderRight: '1px solid rgba(111,220,14,0.15)', background: '#0a120a' }}>{k}</span>
-                <span style={{ padding: '1px 4px', fontSize: 8, color: '#d1d5db' }}>{v}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Registrations */}
+      {/* Registrations — one row each */}
       {registrations.length > 0 && (
-        <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 4 }}>Registrations</div>
+        <div style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid #1e1e1e' }}>
           {registrations.map(reg => {
-            const rawObj = reg as unknown as Record<string, unknown>
-            // Try all known field shapes for the API name
-            const apiId = reg.api?.id ?? reg.api_product?.id ?? rawObj['api_id'] as string | undefined ?? rawObj['api_product_id'] as string | undefined
-            const versionId = reg.api_product_version?.id ?? rawObj['api_product_version_id'] as string | undefined
-            const apiEntry = apiId ? apiLookup.get(apiId) : undefined
-            const apiName = reg.api?.name ?? reg.api_product?.name ?? apiEntry?.api.name ?? apiId ?? '—'
-            const versionName = reg.api_product_version?.name ?? (versionId ? apiEntry?.versions.get(versionId)?.name : undefined) ?? versionId
+            const { apiName, versionName } = resolveRegNames(reg, apiLookup)
             return (
-              <div key={reg.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3, padding: '4px 6px', marginBottom: 3 }}>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-gray-300 font-medium" style={{ fontSize: 9 }}>{apiName}</span>
-                  {versionName && <span className="text-gray-500" style={{ fontSize: 9 }}>· {versionName}</span>}
-                  {reg.status && <span style={{ ...statusStyle(reg.status), marginLeft: 'auto' }}>{reg.status.replace(/_/g, ' ')}</span>}
-                </div>
-                <div className="flex items-center gap-3 mt-1" style={{ fontSize: 8 }}>
-                  {reg.created_at && <span className="text-gray-600">since {fmtDate(reg.created_at)}</span>}
-                  {reg.requests_count !== undefined && (
-                    <span className="text-gray-500">
-                      <span style={{ color: NEON, fontWeight: 600 }}>{reg.requests_count}</span> requests
-                    </span>
-                  )}
-                </div>
+              <div key={reg.id} className="flex items-center gap-1.5 min-w-0" style={{ padding: '1px 0' }}>
+                <span className="text-gray-400 truncate" style={{ fontSize: 9, flex: 1 }}>
+                  {apiName}{versionName ? ` · ${versionName}` : ''}
+                </span>
+                {reg.requests_count !== undefined && (
+                  <span className="flex-shrink-0 font-mono" style={{ fontSize: 8, color: NEON }}>{reg.requests_count} req</span>
+                )}
+                {reg.created_at && (
+                  <span className="text-gray-600 flex-shrink-0" style={{ fontSize: 8 }}>{fmtDate(reg.created_at)}</span>
+                )}
+                {reg.status && <span style={{ ...statusStyle(reg.status), flexShrink: 0 }}>{reg.status.replace(/_/g, ' ')}</span>}
               </div>
             )
           })}
@@ -972,9 +921,9 @@ export function KonnectRoutePanel() {
                         </a>
                         {p.appEntries.length > 0 && (
                           <>
-                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 4 }}>Applications ({p.appEntries.length})</div>
+                            <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 2 }}>Applications ({p.appEntries.length})</div>
                             {p.appEntries.map(appEntry => (
-                              <AppCard key={appEntry.app.id} entry={appEntry} portalName={p.name} portalUrl={p.url} apiLookup={apiLookup} />
+                              <AppRow key={appEntry.app.id} entry={appEntry} apiLookup={apiLookup} />
                             ))}
                           </>
                         )}
