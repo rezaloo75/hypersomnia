@@ -65,7 +65,10 @@ export const useUIStore = create<UIState>((set) => ({
   isSending: false,
   currentExecution: null,
   setSending: (v) => set({ isSending: v }),
-  setCurrentExecution: (e) => set({ currentExecution: e }),
+  setCurrentExecution: (e) => {
+    localStorage.setItem('hs_currentExecutionId', e?.id ?? '')
+    set({ currentExecution: e })
+  },
 
   aiMessages: [],
   aiLoading: false,

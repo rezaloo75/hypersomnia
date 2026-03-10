@@ -14,7 +14,7 @@ const METHOD_COLORS: Record<string, string> = {
 
 export function HistoryPanel() {
   const { history, clearHistory } = useWorkspaceStore()
-  const { setCurrentExecution } = useUIStore()
+  const { currentExecution, setCurrentExecution } = useUIStore()
   const [collapsed, setCollapsed] = useState(false)
 
   function select(entry: RequestExecution) {
@@ -47,7 +47,7 @@ export function HistoryPanel() {
         {history.map(entry => (
         <div
           key={entry.id}
-          className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-xs"
+          className={`flex items-center gap-2 px-3 py-1.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-xs ${currentExecution?.id === entry.id ? 'bg-gray-800' : ''}`}
           onClick={() => select(entry)}
         >
           <span className={`font-bold w-14 flex-shrink-0 ${METHOD_COLORS[entry.request.method] ?? 'text-gray-400'}`}>

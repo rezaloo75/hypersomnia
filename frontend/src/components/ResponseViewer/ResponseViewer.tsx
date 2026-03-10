@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { InboxIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
+import { useWorkspaceStore } from '../../store/workspaceStore'
 import { StatusBadge } from './StatusBadge'
 import { BodyViewer } from './BodyViewer'
 import { HeadersViewer } from './HeadersViewer'
@@ -12,8 +13,21 @@ const KONG_DEBUG_HEADER = 'x-kong-request-debug-output'
 const NEON = '#6fdc0e'
 
 export function ResponseViewer() {
-  const { currentExecution, activeResponseTab, setActiveResponseTab } = useUIStore()
-  const [historyHeight, setHistoryHeight] = useState(180)
+  const { currentExecution, activeResponseTab, setActiveResponseTab, setCurrentExecution } = useUIStore()
+  const { history } = useWorkspaceStore()
+  const [historyHeight, setHistoryHeight] = useState(() =>
+    parseInt(localStorage.getItem('hs_historyHeight') ?? '180', 10)
+  )
+
+  // Restore last selected history entry on mount
+  useEffect(() => {
+    if (currentExecution) return
+    const savedId = localStorage.getItem('hs_currentExecutionId')
+    if (!savedId) return
+    const entry = history.find(e => e.id === savedId)
+    if (entry) setCurrentExecution(entry)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const dragRef = useRef(false)
 
   const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -21,14 +35,17 @@ export function ResponseViewer() {
     dragRef.current = true
     const startY = e.clientY
     const startH = historyHeight
+    let currentH = startH
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return
-      setHistoryHeight(Math.max(36, Math.min(500, startH + (ev.clientY - startY))))
+      currentH = Math.max(36, Math.min(500, startH + (ev.clientY - startY)))
+      setHistoryHeight(currentH)
     }
     const onUp = () => {
       dragRef.current = false
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      localStorage.setItem('hs_historyHeight', String(currentH))
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
