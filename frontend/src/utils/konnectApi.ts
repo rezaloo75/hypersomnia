@@ -401,7 +401,28 @@ export async function listAppRegistrations(
 ): Promise<KonnectAppRegistration[]> {
   try {
     const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications/${appId}/registrations`, { 'page[size]': '100' })
+    console.debug('[konnect] raw registrations', appId, json)
     const typed = json as { data?: KonnectAppRegistration[] }
+    return typed.data ?? []
+  } catch { return [] }
+}
+
+export interface KonnectApiVersion {
+  id: string
+  name?: string
+  deprecated?: boolean
+  publish_status?: string
+}
+
+/** List versions for a given API (v3 API Builder). */
+export async function listApiVersions(
+  pat: string,
+  region: KonnectRegion,
+  apiId: string,
+): Promise<KonnectApiVersion[]> {
+  try {
+    const json = await konnectGet(pat, region, `/v3/apis/${apiId}/versions`, { 'page[size]': '100' })
+    const typed = json as { data?: KonnectApiVersion[] }
     return typed.data ?? []
   } catch { return [] }
 }

@@ -21,12 +21,14 @@ import {
   listPortals,
   listPortalApplications,
   listAppRegistrations,
+  listApiVersions,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
   type KonnectPortalApi,
   type KonnectPortalApplication,
   type KonnectAppRegistration,
+  type KonnectApiVersion,
 } from '../../utils/konnectApi'
 
 const CP_TYPE_LABELS: Record<string, string> = {
@@ -474,7 +476,12 @@ function fmtDate(iso?: string | null): string | null {
   catch { return iso }
 }
 
-function AppCard({ entry, portalName, portalUrl }: { entry: AppEntry; portalName: string; portalUrl: string }) {
+function AppCard({ entry, portalName, portalUrl, apiLookup }: {
+  entry: AppEntry
+  portalName: string
+  portalUrl: string
+  apiLookup: ApiLookup
+}) {
   const { app, registrations } = entry
   const hasLabels = app.labels && Object.keys(app.labels).length > 0
 
@@ -562,15 +569,28 @@ function AppCard({ entry, portalName, portalUrl }: { entry: AppEntry; portalName
       {/* Registrations */}
       {registrations.length > 0 && (
         <div style={{ marginTop: 5, paddingTop: 5, borderTop: '1px solid #1a1a1a' }}>
-          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 3 }}>Registrations</div>
-          {registrations.map(reg => (
-            <div key={reg.id} className="flex items-center gap-1.5 flex-wrap" style={{ padding: '1px 0' }}>
-              <span className="text-gray-400" style={{ fontSize: 9 }}>
-                {[reg.api_product?.name, reg.api_product_version?.name].filter(Boolean).join(' – ') || reg.id}
-              </span>
-              {reg.status && <span style={statusStyle(reg.status)}>{reg.status.replace(/_/g, ' ')}</span>}
-            </div>
-          ))}
+          <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 4 }}>Registrations</div>
+          {registrations.map(reg => {
+            const rawObj = reg as unknown as Record<string, unknown>
+            // IDs may be nested (api_product.id) or flat (api_product_id)
+            const apiId = reg.api_product?.id ?? rawObj['api_product_id'] as string | undefined
+            const versionId = reg.api_product_version?.id ?? rawObj['api_product_version_id'] as string | undefined
+            const apiEntry = apiId ? apiLookup.get(apiId) : undefined
+            const apiName = reg.api_product?.name ?? apiEntry?.api.name ?? apiId ?? '—'
+            const versionName = reg.api_product_version?.name ?? (versionId ? apiEntry?.versions.get(versionId)?.name : undefined) ?? versionId
+            return (
+              <div key={reg.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3, padding: '4px 6px', marginBottom: 3 }}>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-gray-300 font-medium" style={{ fontSize: 9 }}>{apiName}</span>
+                  {versionName && <span className="text-gray-500" style={{ fontSize: 9 }}>· {versionName}</span>}
+                  {reg.status && <span style={{ ...statusStyle(reg.status), marginLeft: 'auto' }}>{reg.status.replace(/_/g, ' ')}</span>}
+                </div>
+                {reg.created_at && (
+                  <div className="text-gray-600" style={{ fontSize: 8, marginTop: 2 }}>since {fmtDate(reg.created_at)}</div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -583,6 +603,9 @@ interface AppEntry {
   app: KonnectPortalApplication
   registrations: KonnectAppRegistration[]
 }
+
+// api_id → { api, versions }
+type ApiLookup = Map<string, { api: KonnectPortalApi; versions: Map<string, KonnectApiVersion> }>
 
 interface PortalEntry {
   id: string
@@ -624,6 +647,7 @@ export function KonnectRoutePanel() {
 
   const [portalApis, setPortalApis] = useState<PortalApiEntry[] | null>(null)
   const [loadingPortalApis, setLoadingPortalApis] = useState(false)
+  const [apiLookup, setApiLookup] = useState<ApiLookup>(new Map())
 
   useEffect(() => {
     if (!ctxMenu) return
@@ -644,7 +668,7 @@ export function KonnectRoutePanel() {
 
   useEffect(() => {
     if (isKonnect && request && topFolder) load()
-    else { setData(null); setNotFound(false); setError(null); setPortalApis(null) }
+    else { setData(null); setNotFound(false); setError(null); setPortalApis(null); setApiLookup(new Map()) }
   }, [activeRequestId])
 
   // When we have a service ID, separately look up matching Portal APIs.
@@ -710,6 +734,16 @@ export function KonnectRoutePanel() {
           })
         )
       )
+
+      // Build api lookup: api_id → { api, versions map }
+      // Fetch versions for every api in the matched set so registrations can resolve names
+      const lookup: ApiLookup = new Map()
+      await Promise.all(apis.map(async api => {
+        const versions = await listApiVersions(pat, region, api.id)
+        const vMap = new Map(versions.map(v => [v.id, v]))
+        lookup.set(api.id, { api, versions: vMap })
+      }))
+      setApiLookup(lookup)
 
       const entries = [...matchedApiIds]
         .map(id => {
@@ -935,7 +969,7 @@ export function KonnectRoutePanel() {
                           <>
                             <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 9, marginBottom: 4 }}>Applications ({p.appEntries.length})</div>
                             {p.appEntries.map(appEntry => (
-                              <AppCard key={appEntry.app.id} entry={appEntry} portalName={p.name} portalUrl={p.url} />
+                              <AppCard key={appEntry.app.id} entry={appEntry} portalName={p.name} portalUrl={p.url} apiLookup={apiLookup} />
                             ))}
                           </>
                         )}
