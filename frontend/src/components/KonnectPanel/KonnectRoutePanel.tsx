@@ -16,7 +16,7 @@ import {
   getCpDetail,
   listAllPlugins,
   listApis,
-  getApiImplementations,
+  listApiImplementations,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
@@ -493,7 +493,9 @@ export function KonnectRoutePanel() {
     else { setData(null); setNotFound(false); setError(null); setPortalApis(null) }
   }, [activeRequestId])
 
-  // When we have a service ID, separately look up matching Portal APIs
+  // When we have a service ID, separately look up matching Portal APIs.
+  // Uses two parallel calls: list all implementations + list all APIs,
+  // then cross-references by api_id for the ones matching this service.
   useEffect(() => {
     const serviceId = data?.service?.id as string | undefined
     if (!serviceId || !topFolder) { setPortalApis(null); return }
@@ -503,15 +505,18 @@ export function KonnectRoutePanel() {
     const region = (topFolder.kongRegion ?? 'us') as KonnectRegion
     setLoadingPortalApis(true)
     setPortalApis(null)
-    listApis(pat, region).then(async apis => {
-      const matches: KonnectPortalApi[] = []
-      await Promise.all(apis.map(async api => {
-        const impls = await getApiImplementations(pat, region, api.id)
-        if (impls.some(impl => impl.service?.id === serviceId && impl.service?.control_plane_id === cpId)) {
-          matches.push(api)
-        }
-      }))
-      setPortalApis(matches)
+    Promise.all([
+      listApiImplementations(pat, region),
+      listApis(pat, region),
+    ]).then(([impls, apis]) => {
+      const apiMap = new Map(apis.map(a => [a.id, a]))
+      const matchedApiIds = new Set(
+        impls
+          .filter(impl => impl.service?.id === serviceId && impl.service?.control_plane_id === cpId)
+          .map(impl => impl.api_id)
+          .filter(Boolean) as string[]
+      )
+      setPortalApis([...matchedApiIds].map(id => apiMap.get(id)).filter(Boolean) as KonnectPortalApi[])
     }).catch(() => setPortalApis([])).finally(() => setLoadingPortalApis(false))
   }, [data?.service?.id])
 
