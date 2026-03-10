@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view'
 import type { RequestExecution } from '../../types'
 
 const fontTheme = EditorView.theme({
-  '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, monospace', fontSize: '12px', lineHeight: '18px' },
+  '.cm-scroller': { fontFamily: 'inherit !important', fontSize: '12px !important', lineHeight: '18px' },
 })
 
 interface Props {
