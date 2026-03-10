@@ -22,6 +22,7 @@ import {
   listPortalApplications,
   listAppRegistrations,
   listApiVersions,
+  getDeveloper,
   cpKindFromClusterType,
   type KonnectRegion,
   type KonnectRoute,
@@ -487,8 +488,7 @@ function resolveRegNames(reg: KonnectAppRegistration, apiLookup: ApiLookup) {
 }
 
 function AppRow({ entry, apiLookup }: { entry: AppEntry; apiLookup: ApiLookup }) {
-  const { app, registrations } = entry
-  const devLine = [app.developer?.full_name, app.developer?.email].filter(Boolean).join(' · ')
+  const { app, registrations, ownerName } = entry
   const extraParts = [
     app.created_at ? fmtDate(app.created_at) : null,
     app.reference_id ? `ref: ${app.reference_id}` : null,
@@ -508,13 +508,10 @@ function AppRow({ entry, apiLookup }: { entry: AppEntry; apiLookup: ApiLookup })
         )}
       </div>
 
-      {/* Developer + extra metadata on one line */}
-      {(devLine || extraParts.length > 0) && (
+      {/* Owner + extra metadata on one line */}
+      {(ownerName || extraParts.length > 0) && (
         <div className="flex items-center gap-1.5 min-w-0 mt-0.5">
-          {devLine && <span className="text-gray-500 truncate" style={{ fontSize: 9 }}>{devLine}</span>}
-          {app.developer?.status && app.developer.status !== 'active' && (
-            <span style={statusStyle(app.developer.status)}>{app.developer.status.replace(/_/g, ' ')}</span>
-          )}
+          {ownerName && <span className="text-gray-500 truncate" style={{ fontSize: 9 }}>{ownerName}</span>}
           {extraParts.length > 0 && (
             <span className="text-gray-700 truncate flex-shrink-0" style={{ fontSize: 8 }}>{extraParts.join(' · ')}</span>
           )}
@@ -552,6 +549,7 @@ function AppRow({ entry, apiLookup }: { entry: AppEntry; apiLookup: ApiLookup })
 interface AppEntry {
   app: KonnectPortalApplication
   registrations: KonnectAppRegistration[]
+  ownerName?: string | null
 }
 
 // api_id → { api, versions }
@@ -639,7 +637,6 @@ export function KonnectRoutePanel() {
       listApiPublications(pat, region),
       listPortals(pat, region),
     ]).then(async ([impls, apis, publications, portals]) => {
-      console.log('[konnect] portal apis effect', { serviceId, cpId, impls: impls.length, apis: apis.length, publications: publications.length, portals: portals.length })
       const apiMap = new Map(apis.map(a => [a.id, a]))
       const portalMap = new Map(portals.map(p => [p.id, p]))
 
@@ -663,27 +660,29 @@ export function KonnectRoutePanel() {
           .map(impl => impl.api_id)
           .filter(Boolean) as string[]
       )
-      console.log('[konnect] matchedApiIds', [...matchedApiIds])
-
       // Fetch applications for each distinct portal that hosts a matched API
       const matchedPortalIds = new Set<string>()
       for (const apiId of matchedApiIds) {
         for (const p of apiPortals.get(apiId) ?? []) matchedPortalIds.add(p.id)
       }
-      console.log('[konnect] matchedPortalIds', [...matchedPortalIds])
       const appsByPortal = new Map<string, KonnectPortalApplication[]>()
       await Promise.all([...matchedPortalIds].map(async portalId => {
         const apps = await listPortalApplications(pat, region, portalId)
         appsByPortal.set(portalId, apps)
       }))
 
-      // Fetch registrations for every application in parallel
+      // Fetch registrations + developers for every application in parallel
       const registrationsByApp = new Map<string, KonnectAppRegistration[]>()
+      const ownerNameByApp = new Map<string, string | null>()
       await Promise.all(
         [...appsByPortal.entries()].flatMap(([portalId, apps]) =>
-          apps.map(async app => {
-            const regs = await listAppRegistrations(pat, region, portalId, app.id)
+          apps.flatMap(async app => {
+            const [regs, dev] = await Promise.all([
+              listAppRegistrations(pat, region, portalId, app.id),
+              app.owner?.id ? getDeveloper(pat, region, portalId, app.owner.id) : Promise.resolve(null),
+            ])
             registrationsByApp.set(app.id, regs)
+            ownerNameByApp.set(app.id, dev?.full_name ?? dev?.name ?? dev?.email ?? null)
           })
         )
       )
@@ -709,6 +708,7 @@ export function KonnectRoutePanel() {
             appEntries: (appsByPortal.get(p.id) ?? []).map(app => ({
               app,
               registrations: registrationsByApp.get(app.id) ?? [],
+              ownerName: ownerNameByApp.get(app.id) ?? null,
             })),
           }))
           return { api, portals: portalsForApi }
@@ -911,8 +911,8 @@ export function KonnectRoutePanel() {
                     entry.portals.flatMap(p =>
                       p.appEntries.flatMap(ae =>
                         ae.registrations.length > 0
-                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.name ?? ae.app.developer?.email, status: reg.status ?? ae.app.status }))
-                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.name ?? ae.app.developer?.email, status: ae.app.status }]
+                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.ownerName, status: reg.status ?? ae.app.status }))
+                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.ownerName, status: ae.app.status }]
                       )
                     )
                   )
