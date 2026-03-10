@@ -894,52 +894,96 @@ export function KonnectRoutePanel() {
                 {!loading && !loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
                   <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
                 )}
-                {!loading && !loadingPortalApis && portalApis?.map(entry => (
-                  <div key={entry.api.id} style={{ borderBottom: '1px solid #1a1a1a', padding: '5px 0' }}>
+                {!loading && !loadingPortalApis && portalApis && portalApis.length > 0 && (() => {
+                  // Flatten into table rows
+                  type ApiRow = { key: string; name: string; description?: string; slug?: string; portalName: string | null; portalUrl: string | null }
+                  type AppRow = { key: string; name: string; description?: string | null; date?: string; owner?: string | null; status?: string }
+                  const apiRows: ApiRow[] = portalApis.flatMap(entry =>
+                    (entry.portals.length > 0
+                      ? entry.portals.map(p => ({ key: `${entry.api.id}-${p.id}`, name: entry.api.name, description: entry.api.description, slug: entry.api.slug, portalName: p.name as string | null, portalUrl: p.url as string | null }))
+                      : [{ key: entry.api.id, name: entry.api.name, description: entry.api.description, slug: entry.api.slug, portalName: null as string | null, portalUrl: null as string | null }]
+                    ) as ApiRow[]
+                  )
+                  const appRows: AppRow[] = portalApis.flatMap(entry =>
+                    entry.portals.flatMap(p =>
+                      p.appEntries.flatMap(ae =>
+                        ae.registrations.length > 0
+                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.email, status: reg.status ?? ae.app.status }))
+                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.email, status: ae.app.status }]
+                      )
+                    )
+                  )
+                  // De-duplicate app rows by key
+                  const seenAppKeys = new Set<string>()
+                  const uniqueAppRows = appRows.filter((r: AppRow) => { if (seenAppKeys.has(r.key)) return false; seenAppKeys.add(r.key); return true })
 
-                    {/* API name · description on one line */}
-                    <div className="flex items-baseline gap-1.5 min-w-0">
-                      <span className="font-semibold text-gray-200 flex-shrink-0" style={{ fontSize: 10 }}>{entry.api.name}</span>
-                      {entry.api.description && (
-                        <span className="text-gray-600 truncate" style={{ fontSize: 9 }}>{entry.api.description}</span>
+                  const TH = ({ children, width }: { children: React.ReactNode; width?: string }) => (
+                    <th style={{ width, padding: '3px 6px', textAlign: 'left', fontWeight: 600, fontSize: 8, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #1e1e1e', whiteSpace: 'nowrap' }}>{children}</th>
+                  )
+                  const TD = ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) => (
+                    <td style={{ padding: '3px 6px', fontSize: 9, color: '#9ca3af', borderBottom: '1px solid #111', maxWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...style }}>{children}</td>
+                  )
+
+                  return (
+                    <div style={{ marginTop: 2 }}>
+                      {/* Table 1: APIs */}
+                      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                        <thead>
+                          <tr>
+                            <TH width="30%">API</TH>
+                            <TH width="40%">Description</TH>
+                            <TH width="30%">Portal</TH>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {apiRows.map(row => (
+                            <tr key={row.key}>
+                              <TD style={{ color: '#e5e7eb', fontWeight: 500 }}>{row.name}</TD>
+                              <TD>{row.description ?? '—'}</TD>
+                              <TD>
+                                {row.portalUrl
+                                  ? <a href={row.slug ? `${row.portalUrl}/apis/${row.slug}/versions` : row.portalUrl} target="_blank" rel="noopener noreferrer"
+                                      style={{ color: NEON, textDecoration: 'none' }}
+                                      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                                    >{row.portalName}</a>
+                                  : <span style={{ color: '#374151' }}>—</span>}
+                              </TD>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Table 2: Applications */}
+                      {uniqueAppRows.length > 0 && (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 10 }}>
+                          <thead>
+                            <tr>
+                              <TH width="22%">Application</TH>
+                              <TH width="22%">Description</TH>
+                              <TH width="18%">Registered</TH>
+                              <TH width="24%">Owner</TH>
+                              <TH width="14%">Status</TH>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {uniqueAppRows.map(row => (
+                              <tr key={row.key}>
+                                <TD style={{ color: '#e5e7eb', fontWeight: 500 }}>{row.name}</TD>
+                                <TD>{row.description ?? '—'}</TD>
+                                <TD>{fmtDate(row.date) ?? '—'}</TD>
+                                <TD>{row.owner ?? '—'}</TD>
+                                <TD style={{ overflow: 'visible', whiteSpace: 'normal' }}>
+                                  {row.status ? <span style={statusStyle(row.status)}>{row.status.replace(/_/g, ' ')}</span> : <span style={{ color: '#374151' }}>—</span>}
+                                </TD>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       )}
                     </div>
-
-                    {entry.portals.map(p => (
-                      <div key={p.id}>
-                        {/* Portal link + app count on one line */}
-                        <div className="flex items-center gap-2 min-w-0 mt-1">
-                          <a
-                            href={entry.api.slug ? `${p.url}/apis/${entry.api.slug}/versions` : p.url}
-                            target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 flex-shrink-0"
-                            style={{ fontSize: 9, color: NEON, textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                          >
-                            <svg viewBox="0 0 12 12" fill="none" style={{ width: 8, height: 8 }}><path d="M2 10L10 2M10 2H5M10 2V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            {p.name}
-                          </a>
-                          {p.appEntries.length > 0 && (
-                            <span className="text-gray-700" style={{ fontSize: 8 }}>· {p.appEntries.length} app{p.appEntries.length > 1 ? 's' : ''}</span>
-                          )}
-                        </div>
-
-                        {p.appEntries.length > 0 && (
-                          <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #1e1e1e' }}>
-                            {p.appEntries.map(appEntry => (
-                              <AppRow key={appEntry.app.id} entry={appEntry} apiLookup={apiLookup} />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {entry.portals.length === 0 && (
-                      <div className="text-gray-700 mt-1" style={{ fontSize: 9 }}>Not published on any portal.</div>
-                    )}
-                  </div>
-                ))}
+                  )
+                })()}
               </Accordion>
             )}
 
