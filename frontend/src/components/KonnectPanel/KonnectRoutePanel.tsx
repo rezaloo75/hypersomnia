@@ -756,17 +756,17 @@ export function KonnectRoutePanel() {
             </Accordion>
 
             {/* ── Portal APIs ── */}
-            {data?.service && (
+            {(loading || data?.service) && (
               <Accordion label="Portal APIs" storageKey="konnect_portal_apis" count={portalApis?.length}>
-                {loadingPortalApis && (
+                {(loading || loadingPortalApis) && (
                   <div className="flex items-center gap-1.5 text-gray-600 py-1">
-                    <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Looking up portal APIs…</span>
+                    <ArrowPathIcon className="w-3 h-3 animate-spin" /><span>Loading…</span>
                   </div>
                 )}
-                {!loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
+                {!loading && !loadingPortalApis && portalApis !== null && portalApis.length === 0 && (
                   <p className="text-gray-600 py-1">No portal APIs linked to this service.</p>
                 )}
-                {!loadingPortalApis && portalApis?.map(entry => (
+                {!loading && !loadingPortalApis && portalApis?.map(entry => (
                   <div key={entry.api.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 4, padding: '6px 8px', marginBottom: 6 }}>
                     <div className="font-semibold text-gray-200 truncate" style={{ fontSize: 11 }}>{entry.api.name}</div>
                     {entry.api.description && (
