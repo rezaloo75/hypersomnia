@@ -572,11 +572,11 @@ function AppCard({ entry, portalName, portalUrl, apiLookup }: {
           <div className="text-gray-600 uppercase tracking-wide" style={{ fontSize: 8, marginBottom: 4 }}>Registrations</div>
           {registrations.map(reg => {
             const rawObj = reg as unknown as Record<string, unknown>
-            // IDs may be nested (api_product.id) or flat (api_product_id)
-            const apiId = reg.api_product?.id ?? rawObj['api_product_id'] as string | undefined
+            // Try all known field shapes for the API name
+            const apiId = reg.api?.id ?? reg.api_product?.id ?? rawObj['api_id'] as string | undefined ?? rawObj['api_product_id'] as string | undefined
             const versionId = reg.api_product_version?.id ?? rawObj['api_product_version_id'] as string | undefined
             const apiEntry = apiId ? apiLookup.get(apiId) : undefined
-            const apiName = reg.api_product?.name ?? apiEntry?.api.name ?? apiId ?? '—'
+            const apiName = reg.api?.name ?? reg.api_product?.name ?? apiEntry?.api.name ?? apiId ?? '—'
             const versionName = reg.api_product_version?.name ?? (versionId ? apiEntry?.versions.get(versionId)?.name : undefined) ?? versionId
             return (
               <div key={reg.id} style={{ background: '#0a0a0a', border: '1px solid #1e1e1e', borderRadius: 3, padding: '4px 6px', marginBottom: 3 }}>
@@ -585,9 +585,14 @@ function AppCard({ entry, portalName, portalUrl, apiLookup }: {
                   {versionName && <span className="text-gray-500" style={{ fontSize: 9 }}>· {versionName}</span>}
                   {reg.status && <span style={{ ...statusStyle(reg.status), marginLeft: 'auto' }}>{reg.status.replace(/_/g, ' ')}</span>}
                 </div>
-                {reg.created_at && (
-                  <div className="text-gray-600" style={{ fontSize: 8, marginTop: 2 }}>since {fmtDate(reg.created_at)}</div>
-                )}
+                <div className="flex items-center gap-3 mt-1" style={{ fontSize: 8 }}>
+                  {reg.created_at && <span className="text-gray-600">since {fmtDate(reg.created_at)}</span>}
+                  {reg.requests_count !== undefined && (
+                    <span className="text-gray-500">
+                      <span style={{ color: NEON, fontWeight: 600 }}>{reg.requests_count}</span> requests
+                    </span>
+                  )}
+                </div>
               </div>
             )
           })}

@@ -293,6 +293,10 @@ export interface KonnectAppRegistration {
   id: string
   status?: string
   created_at?: string
+  updated_at?: string
+  requests_count?: number
+  // field name varies by API version — try all known shapes
+  api?: { id?: string; name?: string } | null
   api_product?: { id?: string; name?: string } | null
   api_product_version?: { id?: string; name?: string } | null
 }
