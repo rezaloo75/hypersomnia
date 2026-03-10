@@ -639,6 +639,7 @@ export function KonnectRoutePanel() {
       listApiPublications(pat, region),
       listPortals(pat, region),
     ]).then(async ([impls, apis, publications, portals]) => {
+      console.log('[konnect] portal apis effect', { serviceId, cpId, impls: impls.length, apis: apis.length, publications: publications.length, portals: portals.length })
       const apiMap = new Map(apis.map(a => [a.id, a]))
       const portalMap = new Map(portals.map(p => [p.id, p]))
 
@@ -662,12 +663,14 @@ export function KonnectRoutePanel() {
           .map(impl => impl.api_id)
           .filter(Boolean) as string[]
       )
+      console.log('[konnect] matchedApiIds', [...matchedApiIds])
 
       // Fetch applications for each distinct portal that hosts a matched API
       const matchedPortalIds = new Set<string>()
       for (const apiId of matchedApiIds) {
         for (const p of apiPortals.get(apiId) ?? []) matchedPortalIds.add(p.id)
       }
+      console.log('[konnect] matchedPortalIds', [...matchedPortalIds])
       const appsByPortal = new Map<string, KonnectPortalApplication[]>()
       await Promise.all([...matchedPortalIds].map(async portalId => {
         const apps = await listPortalApplications(pat, region, portalId)
@@ -908,8 +911,8 @@ export function KonnectRoutePanel() {
                     entry.portals.flatMap(p =>
                       p.appEntries.flatMap(ae =>
                         ae.registrations.length > 0
-                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.email, status: reg.status ?? ae.app.status }))
-                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.email, status: ae.app.status }]
+                          ? ae.registrations.map(reg => ({ key: `${ae.app.id}-${reg.id}`, name: ae.app.name, description: ae.app.description, date: reg.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.name ?? ae.app.developer?.email, status: reg.status ?? ae.app.status }))
+                          : [{ key: ae.app.id, name: ae.app.name, description: ae.app.description, date: ae.app.created_at, owner: ae.app.developer?.full_name ?? ae.app.developer?.name ?? ae.app.developer?.email, status: ae.app.status }]
                       )
                     )
                   )

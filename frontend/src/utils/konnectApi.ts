@@ -284,6 +284,7 @@ export interface KonnectPortalApplication {
   developer?: {
     id?: string
     full_name?: string | null
+    name?: string | null
     email?: string | null
     status?: string
   } | null
@@ -405,7 +406,6 @@ export async function listAppRegistrations(
 ): Promise<KonnectAppRegistration[]> {
   try {
     const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications/${appId}/registrations`, { 'page[size]': '100' })
-    console.debug('[konnect] raw registrations', appId, json)
     const typed = json as { data?: KonnectAppRegistration[] }
     return typed.data ?? []
   } catch { return [] }
@@ -438,7 +438,6 @@ export async function listPortalApplications(
   region: KonnectRegion,
   portalId: string,
 ): Promise<KonnectPortalApplication[]> {
-  console.debug('[konnect] listPortalApplications called', portalId)
   // Try v3 endpoint first (used by newer Konnect orgs with v3 Dev Portal IDs)
   try {
     const results: KonnectPortalApplication[] = []
@@ -447,14 +446,14 @@ export async function listPortalApplications(
       const params: Record<string, string> = { 'page[size]': '100' }
       if (pageAfter) params['page[after]'] = pageAfter
       const json = await konnectGet(pat, region, `/v3/portals/${portalId}/applications`, params)
-      console.debug('[konnect] v3 apps raw', json)
+      console.log('[konnect] v3 apps', json)
       const typed = json as { data?: KonnectPortalApplication[]; meta?: { next?: { cursor?: string } } }
       results.push(...(typed.data ?? []))
       pageAfter = typed.meta?.next?.cursor ?? undefined
     } while (pageAfter)
     return results
   } catch (e) {
-    console.debug('[konnect] v3 apps failed, trying v2', e)
+    console.log('[konnect] v3 apps failed, trying v2', String(e))
   }
 
   // Fall back to v2 (legacy portal IDs)
@@ -465,14 +464,14 @@ export async function listPortalApplications(
       const params: Record<string, string> = { size: '100' }
       if (offset) params.offset = offset
       const json = await konnectGet(pat, region, `/v2/portals/${portalId}/applications`, params)
-      console.debug('[konnect] v2 apps raw', json)
+      console.log('[konnect] v2 apps', json)
       const typed = json as { data?: KonnectPortalApplication[]; offset?: string }
       results.push(...(typed.data ?? []))
       offset = typed.offset
     } while (offset)
     return results
   } catch (e) {
-    console.debug('[konnect] v2 apps also failed', e)
+    console.log('[konnect] v2 apps also failed', String(e))
     return []
   }
 }
