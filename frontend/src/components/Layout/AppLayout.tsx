@@ -10,7 +10,9 @@ import { useUIStore } from '../../store/uiStore'
 
 export function AppLayout() {
   const { sidebarWidth, setSidebarWidth, activeRightPanel, activeFolderId } = useUIStore()
-  const [responseHeight, setResponseHeight] = useState(320)
+  const [responseHeight, setResponseHeight] = useState(() =>
+    parseInt(localStorage.getItem('hs_responseHeight') ?? '320', 10)
+  )
   const [rightPanelWidth, setRightPanelWidth] = useState(() =>
     parseInt(localStorage.getItem('hs_rightPanelWidth') ?? '320', 10)
   )
@@ -21,9 +23,11 @@ export function AppLayout() {
 
   const handleSidebarMouseDown = useCallback(() => {
     sidebarDragRef.current = true
+    let currentW = sidebarWidth
     const onMove = (e: MouseEvent) => {
       if (!sidebarDragRef.current) return
-      setSidebarWidth(Math.max(180, Math.min(500, e.clientX)))
+      currentW = Math.max(180, Math.min(500, e.clientX))
+      setSidebarWidth(currentW)
     }
     const onUp = () => {
       sidebarDragRef.current = false
@@ -32,21 +36,23 @@ export function AppLayout() {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [setSidebarWidth])
+  }, [setSidebarWidth, sidebarWidth])
 
   const handleResponseMouseDown = useCallback((e: React.MouseEvent) => {
     responseDragRef.current = true
     const startY = e.clientY
     const startH = responseHeight
+    let currentH = startH
     const onMove = (ev: MouseEvent) => {
       if (!responseDragRef.current) return
-      const delta = startY - ev.clientY
-      setResponseHeight(Math.max(100, Math.min(800, startH + delta)))
+      currentH = Math.max(100, Math.min(800, startH + (startY - ev.clientY)))
+      setResponseHeight(currentH)
     }
     const onUp = () => {
       responseDragRef.current = false
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      localStorage.setItem('hs_responseHeight', String(currentH))
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)

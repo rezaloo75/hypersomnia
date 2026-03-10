@@ -47,9 +47,9 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  sidebarWidth: 260,
-  activeRightPanel: localStorage.getItem('hs_activeRightPanel') ?? null,
-  setSidebarWidth: (w) => set({ sidebarWidth: w }),
+  sidebarWidth: parseInt(localStorage.getItem('hs_sidebarWidth') ?? '260', 10),
+  activeRightPanel: localStorage.getItem('hs_activeRightPanel') || null,
+  setSidebarWidth: (w) => { localStorage.setItem('hs_sidebarWidth', String(w)); set({ sidebarWidth: w }) },
   setActiveRightPanel: (id) => { localStorage.setItem('hs_activeRightPanel', id ?? ''); set({ activeRightPanel: id }) },
   toggleRightPanel: (id) => set((s) => {
     const next = s.activeRightPanel === id ? null : id
@@ -77,19 +77,21 @@ export const useUIStore = create<UIState>((set) => ({
   sidebarSearch: '',
   setSidebarSearch: (q) => set({ sidebarSearch: q }),
 
-  expandedFolders: new Set<string>(),
+  expandedFolders: new Set<string>(JSON.parse(localStorage.getItem('hs_expandedFolders') ?? '[]') as string[]),
   toggleFolder: (id) => set((s) => {
     const next = new Set(s.expandedFolders)
     if (next.has(id)) next.delete(id)
     else next.add(id)
+    localStorage.setItem('hs_expandedFolders', JSON.stringify([...next]))
     return { expandedFolders: next }
   }),
   expandFolder: (id) => set((s) => {
     const next = new Set(s.expandedFolders)
     next.add(id)
+    localStorage.setItem('hs_expandedFolders', JSON.stringify([...next]))
     return { expandedFolders: next }
   }),
 
-  activeFolderId: null,
-  setActiveFolderId: (id) => set({ activeFolderId: id }),
+  activeFolderId: localStorage.getItem('hs_activeFolderId') ?? null,
+  setActiveFolderId: (id) => { localStorage.setItem('hs_activeFolderId', id ?? ''); set({ activeFolderId: id }) },
 }))
