@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { useUIStore } from '../../store/uiStore'
 import { segmentize } from '../../utils/interpolate'
@@ -26,10 +27,19 @@ export function UrlBar({ request, variables, onSend }: Props) {
   const { updateRequest } = useWorkspaceStore()
   const { isSending } = useUIStore()
   const [focused, setFocused] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const segments = segmentize(request.url, variables)
   const hasUnresolved = segments.some(s => s.isVar && s.unresolved)
   const hasVars = segments.some(s => s.isVar)
+
+  const resolvedUrl = segments.map(s => s.isVar && !s.unresolved ? s.resolved : s.text).join('')
+
+  function copyUrl() {
+    navigator.clipboard.writeText(resolvedUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="flex gap-2">
@@ -45,7 +55,7 @@ export function UrlBar({ request, variables, onSend }: Props) {
 
       <div className="flex-1 relative">
         <input
-          className={`input-base w-full py-1 pr-2 ${hasUnresolved ? 'border-red-500/60' : ''}`}
+          className={`input-base w-full py-1 pr-7 ${hasUnresolved ? 'border-red-500/60' : ''}`}
           placeholder="https://api.example.com/endpoint"
           value={request.url}
           onChange={e => updateRequest(request.id, { url: e.target.value })}
@@ -53,6 +63,19 @@ export function UrlBar({ request, variables, onSend }: Props) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
+        {request.url && (
+          <button
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-600 hover:text-gray-300 transition-colors"
+            onClick={copyUrl}
+            title="Copy resolved URL"
+            tabIndex={-1}
+          >
+            {copied
+              ? <CheckIcon className="w-3.5 h-3.5 text-green-400" />
+              : <ClipboardDocumentIcon className="w-3.5 h-3.5" />
+            }
+          </button>
+        )}
         {/* Variable preview — only shown while input is focused */}
         {focused && hasVars && (
           <div className="absolute top-full left-0 right-0 z-10 mt-0.5 rounded px-2 py-1 text-xs truncate"
