@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowPathIcon, XMarkIcon, ChevronRightIcon, ClipboardDocumentIcon, CommandLineIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, XMarkIcon, ChevronRightIcon, ClipboardDocumentIcon, CommandLineIcon, CheckIcon, PlusIcon } from '@heroicons/react/24/outline'
 import CodeMirror from '@uiw/react-codemirror'
 import { yaml } from '@codemirror/lang-yaml'
 import { EditorView } from '@codemirror/view'
@@ -31,6 +31,7 @@ import {
   type KonnectAppRegistration,
   type KonnectApiVersion,
 } from '../../utils/konnectApi'
+import { CreateApplicationModal } from '../Konnect/CreateApplicationModal'
 
 const CP_TYPE_LABELS: Record<string, string> = {
   hybrid:     'Hybrid',
@@ -596,6 +597,8 @@ export function KonnectRoutePanel() {
   const [portalApis, setPortalApis] = useState<PortalApiEntry[] | null>(null)
   const [loadingPortalApis, setLoadingPortalApis] = useState(false)
   const [apiLookup, setApiLookup] = useState<ApiLookup>(new Map())
+  const [showCreateApp, setShowCreateApp] = useState(false)
+  const [portalAppsReloadKey, setPortalAppsReloadKey] = useState(0)
 
   useEffect(() => {
     if (!ctxMenu) return
@@ -717,7 +720,7 @@ export function KonnectRoutePanel() {
 
       setPortalApis(entries)
     }).catch((e) => { console.error('[konnect] portal apis failed', e); setPortalApis([]) }).finally(() => setLoadingPortalApis(false))
-  }, [data?.service?.id])
+  }, [data?.service?.id, portalAppsReloadKey])
 
   async function load() {
     if (!request || !topFolder) return
@@ -968,8 +971,28 @@ export function KonnectRoutePanel() {
                       </table>
 
                       {/* Table 2: Applications */}
+                      <div className="flex items-center justify-between" style={{ marginTop: 10, marginBottom: 4 }}>
+                        <span style={{ fontSize: 8, fontWeight: 600, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Applications{appRows.length > 0 ? ` (${appRows.length})` : ''}
+                        </span>
+                        <button
+                          className="flex items-center gap-1 transition-colors"
+                          style={{
+                            fontSize: 9, color: NEON, background: 'rgba(111,220,14,0.08)',
+                            border: '1px solid rgba(111,220,14,0.2)', borderRadius: 4,
+                            padding: '2px 6px', cursor: 'pointer',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.15)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(111,220,14,0.08)')}
+                          onClick={() => setShowCreateApp(true)}
+                          title="Create a new application on the Dev Portal"
+                        >
+                          <PlusIcon style={{ width: 10, height: 10 }} />
+                          <span>New App</span>
+                        </button>
+                      </div>
                       {appRows.length > 0 && (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: 10 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                           <thead>
                             <tr>
                               <TH width="20%">Application</TH>
@@ -1004,6 +1027,32 @@ export function KonnectRoutePanel() {
         )}
 
       </div>
+
+      {/* Create Application modal */}
+      {showCreateApp && portalApis && (() => {
+        // Collect unique portals and matched APIs from the portalApis data
+        const portalMap = new Map<string, { id: string; name: string }>()
+        const matchedApiMap = new Map<string, KonnectPortalApi>()
+        for (const entry of portalApis) {
+          matchedApiMap.set(entry.api.id, entry.api)
+          for (const p of entry.portals) {
+            if (!portalMap.has(p.id)) portalMap.set(p.id, { id: p.id, name: p.name })
+          }
+        }
+        const portalList = [...portalMap.values()]
+        const apiList = [...matchedApiMap.values()]
+        if (portalList.length === 0) return null
+        const region = (topFolder?.kongRegion ?? 'us') as KonnectRegion
+        return (
+          <CreateApplicationModal
+            portals={portalList}
+            matchedApis={apiList}
+            region={region}
+            onClose={() => setShowCreateApp(false)}
+            onCreated={() => setPortalAppsReloadKey(k => k + 1)}
+          />
+        )
+      })()}
 
       {/* Edit & Copy modal */}
       {showDeckModal && yamlText && (

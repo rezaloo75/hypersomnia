@@ -124,6 +124,24 @@ async function konnectGet(
   return res.json()
 }
 
+async function konnectPost(
+  pat: string,
+  region: KonnectRegion,
+  path: string,
+  payload: unknown,
+): Promise<unknown> {
+  const res = await fetch(`${API_BASE}/api/konnect`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pat, region, path, method: 'POST', body: payload }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ''}`)
+  }
+  return res.json()
+}
+
 /** Normalize a stored kongCpType value to a simplified category.
  *  Handles clean values ('serverless', 'dedicated') stored from the v3 API,
  *  as well as raw cluster_type strings like CLUSTER_TYPE_SERVER_LESS from the v2 API. */
@@ -505,4 +523,95 @@ export async function listRoutes(
     offset = json.offset
   } while (offset)
   return results
+}
+
+// ── Application creation ───────────────────────────────────────────────────
+
+export interface KonnectAuthStrategy {
+  id: string
+  name: string
+  credential_type?: string
+  key_names?: string[]
+}
+
+export interface KonnectCreateAppResponse {
+  id: string
+  name: string
+  description?: string | null
+  status?: string
+  created_at?: string
+  credentials?: {
+    id?: string
+    key?: string
+    credential?: string
+    client_id?: string
+    client_secret?: string
+  }
+}
+
+/** List auth strategies available on a portal. */
+export async function listPortalAuthStrategies(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+): Promise<KonnectAuthStrategy[]> {
+  try {
+    const json = await konnectGet(pat, region, `/v3/portals/${portalId}/auth-strategies`, { 'page[size]': '100' })
+    const typed = json as { data?: KonnectAuthStrategy[] }
+    return typed.data ?? []
+  } catch { return [] }
+}
+
+/** Create a new application on a portal. */
+export async function createPortalApplication(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+  body: { name: string; description?: string; auth_strategy_id?: string; reference_id?: string },
+): Promise<KonnectCreateAppResponse> {
+  return await konnectPost(pat, region, `/v3/portals/${portalId}/applications`, body) as KonnectCreateAppResponse
+}
+
+/** Create a credential for an application. */
+export async function createAppCredential(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+  appId: string,
+): Promise<Record<string, unknown>> {
+  return await konnectPost(pat, region, `/v3/portals/${portalId}/applications/${appId}/credentials`, {}) as Record<string, unknown>
+}
+
+/** Register an application for an API product version. */
+export async function createAppRegistration(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+  appId: string,
+  body: { api_product_version_id: string },
+): Promise<Record<string, unknown>> {
+  return await konnectPost(pat, region, `/v3/portals/${portalId}/applications/${appId}/registrations`, body) as Record<string, unknown>
+}
+
+/** List developers on a portal (for selecting app owner). */
+export async function listPortalDevelopers(
+  pat: string,
+  region: KonnectRegion,
+  portalId: string,
+): Promise<KonnectDeveloper[]> {
+  try {
+    const results: KonnectDeveloper[] = []
+    let pageAfter: string | undefined
+    do {
+      const params: Record<string, string> = { 'page[size]': '100' }
+      if (pageAfter) params['page[after]'] = pageAfter
+      const json = await konnectGet(pat, region, `/v3/portals/${portalId}/developers`, params) as {
+        data?: KonnectDeveloper[]
+        meta?: { next?: { cursor?: string } }
+      }
+      results.push(...(json.data ?? []))
+      pageAfter = json.meta?.next?.cursor ?? undefined
+    } while (pageAfter)
+    return results
+  } catch { return [] }
 }
