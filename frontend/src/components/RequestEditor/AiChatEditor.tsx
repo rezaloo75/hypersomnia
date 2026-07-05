@@ -280,6 +280,30 @@ export function AiChatEditor({ request }: Props) {
                 </p>
               )}
 
+              {/* Request body preview */}
+              {config.promptTemplateName && (() => {
+                const properties = Object.fromEntries(
+                  (config.promptTemplateProperties ?? [])
+                    .filter(p => p.key)
+                    .map(p => [p.key, p.value])
+                )
+                const preview = JSON.stringify({
+                  messages: `{template://${config.promptTemplateName}}`,
+                  properties,
+                }, null, 2)
+                return (
+                  <details className="mt-2 pl-[88px]">
+                    <summary className="text-xs cursor-pointer select-none" style={{ color: '#4b5563' }}>
+                      Preview request body
+                    </summary>
+                    <pre className="mt-1 text-xs font-mono rounded p-2 leading-relaxed overflow-x-auto"
+                      style={{ background: '#0d0d0d', color: '#6b7280', border: '1px solid #1f1f1f' }}>
+                      {preview}
+                    </pre>
+                  </details>
+                )
+              })()}
+
               {/* Placeholder hints from selected template */}
               {hasFetchedTemplates && config.promptTemplateName && (() => {
                 const tpl = fetchedTemplates.find(t => t.name === config.promptTemplateName)
