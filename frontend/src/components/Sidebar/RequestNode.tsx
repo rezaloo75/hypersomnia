@@ -46,9 +46,15 @@ export function RequestNode({ request, depth }: Props) {
       {debugModalOpen && (
         <KonnectDebugModal requestId={request.id} onClose={() => setDebugModalOpen(false)} />
       )}
-      <span className={`text-xs font-bold flex-shrink-0 w-12 text-center ${METHOD_COLORS[request.method] ?? 'text-gray-400'}`}>
-        {request.method.slice(0, 3)}
-      </span>
+      {request.requestMode === 'ai-chat' ? (
+        <span className="text-xs font-bold flex-shrink-0 w-12 text-center" style={{ color: '#a78bfa' }}>
+          AI
+        </span>
+      ) : (
+        <span className={`text-xs font-bold flex-shrink-0 w-12 text-center ${METHOD_COLORS[request.method] ?? 'text-gray-400'}`}>
+          {request.method.slice(0, 3)}
+        </span>
+      )}
       <span className={`flex-1 truncate text-xs ${isActive ? 'text-white' : 'text-gray-300'}`}>
         {request.name}
       </span>

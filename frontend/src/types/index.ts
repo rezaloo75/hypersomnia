@@ -1,5 +1,20 @@
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'
 
+export type RequestMode = 'http' | 'ai-chat'
+
+export interface AiChatMessage {
+  id: string
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+export interface AiChatConfig {
+  model: string
+  temperature: number
+  maxTokens: number
+  messages: AiChatMessage[]
+}
+
 export type AuthType = 'none' | 'bearer' | 'basic' | 'apikey'
 
 export type BodyType = 'none' | 'json' | 'form-urlencoded' | 'raw'
@@ -58,6 +73,8 @@ export interface Request {
   auth: Auth
   settings: RequestSettings
   sortOrder: number
+  requestMode?: RequestMode
+  aiChat?: AiChatConfig
 }
 
 export interface ResponseData {

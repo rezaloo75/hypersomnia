@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import type { Folder, Request, RequestExecution, ResponseData } from '../types'
+import type { Folder, HttpMethod, Request, RequestExecution, ResponseData } from '../types'
 import { interpolate } from './interpolate'
 import { API_BASE } from './api'
 
@@ -75,14 +75,15 @@ async function executeDirectly(
   headers: Record<string, string>,
   body: string | undefined,
   startTime: number,
+  method: HttpMethod,
 ): Promise<RequestExecution> {
   const fullUrl = /^https?:\/\//i.test(url) ? url : `http://${url}`
 
   try {
     const res = await fetch(fullUrl, {
-      method: request.method,
+      method,
       headers,
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : body,
+      body: ['GET', 'HEAD'].includes(method) ? undefined : body,
     })
 
     const responseBody = await res.text()
@@ -106,7 +107,7 @@ async function executeDirectly(
       requestId: request.id,
       requestName: request.name,
       timestamp: new Date().toISOString(),
-      request: { method: request.method, url: fullUrl, headers, body },
+      request: { method, url: fullUrl, headers, body },
       response,
     }
   } catch (err) {
@@ -121,7 +122,7 @@ async function executeDirectly(
       requestId: request.id,
       requestName: request.name,
       timestamp: new Date().toISOString(),
-      request: { method: request.method, url: fullUrl, headers },
+      request: { method, url: fullUrl, headers },
       response: { status: 0, statusText: 'Network Error', headers: {}, body: hint, time: Date.now() - startTime, size: 0 },
       error: msg,
     }
@@ -133,13 +134,28 @@ export async function executeRequest(
   variables: Record<string, string>,
   topLevelFolder?: Folder,
 ): Promise<RequestExecution> {
-  const { url, headers, body } = resolveAll(request, variables)
+  const { url, headers: resolvedHeaders, body: resolvedBody } = resolveAll(request, variables)
+
+  let method: HttpMethod = request.method
+  let headers = resolvedHeaders
+  let body = resolvedBody
+
+  if (request.requestMode === 'ai-chat' && request.aiChat) {
+    method = 'POST'
+    headers = { ...headers, 'Content-Type': 'application/json' }
+    body = JSON.stringify({
+      model: request.aiChat.model,
+      messages: request.aiChat.messages.map(({ role, content }) => ({ role, content })),
+      temperature: request.aiChat.temperature,
+      max_tokens: request.aiChat.maxTokens,
+    })
+  }
 
   const startTime = Date.now()
 
   // Local URLs can't go through the Railway relay — send directly from the browser
   if (isLocalUrl(url)) {
-    return executeDirectly(request, url, headers, body, startTime)
+    return executeDirectly(request, url, headers, body, startTime, method)
   }
 
   try {
@@ -147,7 +163,7 @@ export async function executeRequest(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        method: request.method,
+        method,
         url,
         headers,
         body,
@@ -171,7 +187,7 @@ export async function executeRequest(
         requestId: request.id,
         requestName: request.name,
         timestamp: new Date().toISOString(),
-        request: { method: request.method, url, headers },
+        request: { method, url, headers },
         response: { status: 0, statusText: 'Error', headers: {}, body: data.error, time: Date.now() - startTime, size: 0 },
         error: data.error,
       }
@@ -192,7 +208,7 @@ export async function executeRequest(
       requestId: request.id,
       requestName: request.name,
       timestamp: new Date().toISOString(),
-      request: { method: request.method, url, headers, body },
+      request: { method, url, headers, body },
       response,
     }
   } catch (err) {
@@ -202,7 +218,7 @@ export async function executeRequest(
       requestId: request.id,
       requestName: request.name,
       timestamp: new Date().toISOString(),
-      request: { method: request.method, url, headers },
+      request: { method, url, headers },
       response: { status: 0, statusText: 'Network Error', headers: {}, body: msg, time: Date.now() - startTime, size: 0 },
       error: msg,
     }

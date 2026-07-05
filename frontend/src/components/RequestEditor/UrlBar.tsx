@@ -43,15 +43,24 @@ export function UrlBar({ request, variables, onSend }: Props) {
 
   return (
     <div className="flex gap-2">
-      <select
-        className={`input-base font-bold text-xs py-1 px-2 w-24 flex-shrink-0 ${METHOD_COLORS[request.method] ?? 'text-gray-400'}`}
-        value={request.method}
-        onChange={e => updateRequest(request.id, { method: e.target.value as HttpMethod })}
-      >
-        {METHODS.map(m => (
-          <option key={m} value={m} className="text-gray-100 bg-gray-900">{m}</option>
-        ))}
-      </select>
+      {request.requestMode === 'ai-chat' ? (
+        <span
+          className="flex items-center justify-center flex-shrink-0 text-xs font-bold px-2 py-1 rounded w-24"
+          style={{ background: '#1e1033', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+        >
+          POST
+        </span>
+      ) : (
+        <select
+          className={`input-base font-bold text-xs py-1 px-2 w-24 flex-shrink-0 ${METHOD_COLORS[request.method] ?? 'text-gray-400'}`}
+          value={request.method}
+          onChange={e => updateRequest(request.id, { method: e.target.value as HttpMethod })}
+        >
+          {METHODS.map(m => (
+            <option key={m} value={m} className="text-gray-100 bg-gray-900">{m}</option>
+          ))}
+        </select>
+      )}
 
       <div className="flex-1 relative">
         <input
