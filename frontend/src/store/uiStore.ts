@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { RequestExecution, AIMessage } from '../types'
 
-type ResponseTab = 'body' | 'headers' | 'details' | 'kong'
+type ResponseTab = 'body' | 'headers' | 'details' | 'kong' | 'ai-message' | 'ai-meta'
 type BodyFormat = 'pretty' | 'raw'
 
 interface UIState {

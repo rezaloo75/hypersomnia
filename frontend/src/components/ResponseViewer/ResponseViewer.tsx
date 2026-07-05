@@ -8,9 +8,11 @@ import { HeadersViewer } from './HeadersViewer'
 import { DebugViewer } from './DebugViewer'
 import { HistoryPanel } from './HistoryPanel'
 import { KongDebugViewer } from './KongDebugViewer'
+import { AiMessageContent, AiMetadata, parseAiCompletion } from './AiResponseViewer'
 
 const KONG_DEBUG_HEADER = 'x-kong-request-debug-output'
 const NEON = '#6fdc0e'
+const AI_PURPLE = '#a78bfa'
 
 export function ResponseViewer() {
   const { currentExecution, activeResponseTab, setActiveResponseTab, setCurrentExecution } = useUIStore()
@@ -62,12 +64,29 @@ export function ResponseViewer() {
   const kongRequestId = headers['x-kong-request-id']
   const showKongTab = isKongServer || isKongVia || !!kongDebugHeader || !!proxyLatency
 
-  // If on kong tab but no longer a Kong response, fall back to body
+  // AI completion detection
+  const sourceRequest = currentExecution ? requests.find(r => r.id === currentExecution.requestId) : undefined
+  const isAiChatMode = sourceRequest?.requestMode === 'ai-chat'
+  const aiCompletion = currentExecution ? parseAiCompletion(currentExecution.response.body) : null
+  const showAiTabs = isAiChatMode && !!aiCompletion
+
+  // Tab fallback effects
   useEffect(() => {
     if (activeResponseTab === 'kong' && !showKongTab) {
       setActiveResponseTab('body')
     }
   }, [currentExecution, showKongTab, activeResponseTab, setActiveResponseTab])
+
+  useEffect(() => {
+    if (!currentExecution) return
+    if (showAiTabs) {
+      setActiveResponseTab('ai-message')
+    } else if (activeResponseTab === 'ai-message' || activeResponseTab === 'ai-meta') {
+      setActiveResponseTab('body')
+    }
+  // intentionally only fires when the execution changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentExecution])
 
   if (!currentExecution) {
     return (
@@ -92,8 +111,6 @@ export function ResponseViewer() {
   const { response, error } = currentExecution
 
   // Detect if Kong AI Prompt Template plugin is rejecting untemplated requests
-  const sourceRequest = requests.find(r => r.id === currentExecution.requestId)
-  const isAiChatMode = sourceRequest?.requestMode === 'ai-chat'
   const isNotTemplateMode = isAiChatMode && !sourceRequest?.aiChat?.usePromptTemplate
   const bodyLower = response.body?.toLowerCase() ?? ''
   const looksLikeTemplateRejection = (
@@ -164,6 +181,29 @@ export function ResponseViewer() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-800 flex-shrink-0 bg-gray-950">
+        {/* AI tabs — shown first when present */}
+        {showAiTabs && (
+          <>
+            <button
+              className={`tab-btn ${activeResponseTab === 'ai-message' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+              onClick={() => setActiveResponseTab('ai-message')}
+              style={activeResponseTab === 'ai-message'
+                ? { color: AI_PURPLE, borderBottomColor: AI_PURPLE }
+                : { color: AI_PURPLE, opacity: 0.7 }}
+            >
+              Message
+            </button>
+            <button
+              className={`tab-btn ${activeResponseTab === 'ai-meta' ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+              onClick={() => setActiveResponseTab('ai-meta')}
+              style={activeResponseTab === 'ai-meta'
+                ? { color: AI_PURPLE, borderBottomColor: AI_PURPLE }
+                : { color: AI_PURPLE, opacity: 0.7 }}
+            >
+              AI Metadata
+            </button>
+          </>
+        )}
         {(['body', 'headers', 'details'] as const).map(tab => (
           <button
             key={tab}
@@ -194,6 +234,8 @@ export function ResponseViewer() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden">
+        {activeResponseTab === 'ai-message' && aiCompletion && <AiMessageContent completion={aiCompletion} />}
+        {activeResponseTab === 'ai-meta'    && aiCompletion && <AiMetadata completion={aiCompletion} />}
         {activeResponseTab === 'body' && <BodyViewer execution={currentExecution} />}
         {activeResponseTab === 'headers' && <HeadersViewer headers={response.headers} />}
         {activeResponseTab === 'details' && <DebugViewer execution={currentExecution} />}
