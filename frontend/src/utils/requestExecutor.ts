@@ -151,7 +151,7 @@ export async function executeRequest(
           .map(p => [p.key, p.value])
       )
       body = JSON.stringify({
-        messages: [{ role: 'user', content: `{template://${(cfg.promptTemplateName ?? '').trim()}}` }],
+        messages: `{template://${(cfg.promptTemplateName ?? '').trim()}}`,
         properties,
       })
     } else {

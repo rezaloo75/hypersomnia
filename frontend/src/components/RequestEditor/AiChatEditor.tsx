@@ -288,7 +288,7 @@ export function AiChatEditor({ request }: Props) {
                     .map(p => [p.key, p.value])
                 )
                 const preview = JSON.stringify({
-                  messages: [{ role: 'user', content: `{template://${config.promptTemplateName}}` }],
+                  messages: `{template://${config.promptTemplateName}}`,
                   properties,
                 }, null, 2)
                 return (
