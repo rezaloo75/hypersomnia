@@ -143,12 +143,25 @@ export async function executeRequest(
   if (request.requestMode === 'ai-chat' && request.aiChat) {
     method = 'POST'
     headers = { ...headers, 'Content-Type': 'application/json' }
-    body = JSON.stringify({
-      model: request.aiChat.model,
-      messages: request.aiChat.messages.map(({ role, content }) => ({ role, content })),
-      temperature: request.aiChat.temperature,
-      max_tokens: request.aiChat.maxTokens,
-    })
+    const cfg = request.aiChat
+    if (cfg.usePromptTemplate) {
+      const properties = Object.fromEntries(
+        (cfg.promptTemplateProperties ?? [])
+          .filter(p => p.key)
+          .map(p => [p.key, p.value])
+      )
+      body = JSON.stringify({
+        messages: `{template://${cfg.promptTemplateName ?? ''}}`,
+        properties,
+      })
+    } else {
+      body = JSON.stringify({
+        model: cfg.model,
+        messages: cfg.messages.map(({ role, content }) => ({ role, content })),
+        temperature: cfg.temperature,
+        max_tokens: cfg.maxTokens,
+      })
+    }
   }
 
   const startTime = Date.now()

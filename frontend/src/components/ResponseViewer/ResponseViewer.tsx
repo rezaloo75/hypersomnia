@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { InboxIcon } from '@heroicons/react/24/outline'
+import { InboxIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 import { useUIStore } from '../../store/uiStore'
 import { useWorkspaceStore } from '../../store/workspaceStore'
 import { StatusBadge } from './StatusBadge'
@@ -14,7 +14,7 @@ const NEON = '#6fdc0e'
 
 export function ResponseViewer() {
   const { currentExecution, activeResponseTab, setActiveResponseTab, setCurrentExecution } = useUIStore()
-  const { history } = useWorkspaceStore()
+  const { history, requests, updateRequest } = useWorkspaceStore()
   const [historyHeight, setHistoryHeight] = useState(() =>
     parseInt(localStorage.getItem('hs_historyHeight') ?? '180', 10)
   )
@@ -91,6 +91,32 @@ export function ResponseViewer() {
 
   const { response, error } = currentExecution
 
+  // Detect if Kong AI Prompt Template plugin is rejecting untemplated requests
+  const sourceRequest = requests.find(r => r.id === currentExecution.requestId)
+  const isAiChatMode = sourceRequest?.requestMode === 'ai-chat'
+  const isNotTemplateMode = isAiChatMode && !sourceRequest?.aiChat?.usePromptTemplate
+  const bodyLower = response.body?.toLowerCase() ?? ''
+  const looksLikeTemplateRejection = (
+    isNotTemplateMode &&
+    response.status === 400 &&
+    (bodyLower.includes('template') || bodyLower.includes('untemplated'))
+  )
+
+  function switchToTemplateMode() {
+    if (!sourceRequest) return
+    updateRequest(sourceRequest.id, {
+      aiChat: {
+        model: sourceRequest.aiChat?.model ?? 'gpt-4o-mini',
+        temperature: sourceRequest.aiChat?.temperature ?? 1,
+        maxTokens: sourceRequest.aiChat?.maxTokens ?? 1024,
+        messages: sourceRequest.aiChat?.messages ?? [],
+        usePromptTemplate: true,
+        promptTemplateName: sourceRequest.aiChat?.promptTemplateName ?? '',
+        promptTemplateProperties: sourceRequest.aiChat?.promptTemplateProperties ?? [],
+      },
+    })
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* History panel */}
@@ -103,6 +129,24 @@ export function ResponseViewer() {
         className="h-1 bg-gray-800 hover:bg-indigo-500 cursor-row-resize transition-colors flex-shrink-0"
         onMouseDown={handleDividerMouseDown}
       />
+
+      {/* Prompt Template detection banner */}
+      {looksLikeTemplateRejection && (
+        <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0 text-xs"
+          style={{ background: 'rgba(192,132,252,0.08)', borderBottom: '1px solid rgba(192,132,252,0.2)' }}>
+          <DocumentTextIcon className="w-4 h-4 flex-shrink-0" style={{ color: '#c084fc' }} />
+          <span style={{ color: '#d8b4fe' }}>
+            Kong AI Prompt Template plugin detected — untemplated requests may be blocked.
+          </span>
+          <button
+            className="ml-auto flex-shrink-0 text-xs px-2 py-0.5 rounded font-medium"
+            style={{ background: '#2d1a4a', color: '#c084fc', border: '1px solid rgba(192,132,252,0.4)' }}
+            onClick={switchToTemplateMode}
+          >
+            Switch to Template mode
+          </button>
+        </div>
+      )}
 
       {/* Status bar */}
       <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800 flex-shrink-0">

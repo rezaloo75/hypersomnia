@@ -8,11 +8,20 @@ export interface AiChatMessage {
   content: string
 }
 
+export interface AiChatTemplateProperty {
+  id: string
+  key: string
+  value: string
+}
+
 export interface AiChatConfig {
   model: string
   temperature: number
   maxTokens: number
   messages: AiChatMessage[]
+  usePromptTemplate?: boolean
+  promptTemplateName?: string
+  promptTemplateProperties?: AiChatTemplateProperty[]
 }
 
 export type AuthType = 'none' | 'bearer' | 'basic' | 'apikey'
