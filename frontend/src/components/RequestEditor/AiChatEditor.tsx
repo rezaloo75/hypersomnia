@@ -288,6 +288,7 @@ export function AiChatEditor({ request }: Props) {
                     .map(p => [p.key, p.value])
                 )
                 const preview = JSON.stringify({
+                  ...(config.model ? { model: config.model } : {}),
                   messages: `{template://${config.promptTemplateName}}`,
                   properties,
                 }, null, 2)

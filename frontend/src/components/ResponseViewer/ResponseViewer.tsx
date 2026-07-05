@@ -119,12 +119,12 @@ export function ResponseViewer() {
     (bodyLower.includes('template') || bodyLower.includes('untemplated'))
   )
 
-  // Detect when template mode is active but the plugin isn't running on the target route
+  // Detect when template mode is active but Kong returns a body-validation error
   const isTemplateMode = isAiChatMode && !!sourceRequest?.aiChat?.usePromptTemplate
   const looksLikeTemplateMissing = (
     isTemplateMode &&
-    response.status >= 400 &&
-    (bodyLower.includes('valid inputs') || bodyLower.includes('valid input') || bodyLower.includes('"messages"'))
+    response.status === 400 &&
+    (bodyLower.includes('valid inputs') || bodyLower.includes('valid input'))
   )
 
   function switchToTemplateMode() {
@@ -155,14 +155,15 @@ export function ResponseViewer() {
         onMouseDown={handleDividerMouseDown}
       />
 
-      {/* Template plugin not active on this route banner */}
+      {/* Template body validation error banner */}
       {looksLikeTemplateMissing && (
         <div className="flex items-start gap-2 px-3 py-2 flex-shrink-0 text-xs"
           style={{ background: 'rgba(248,113,113,0.06)', borderBottom: '1px solid rgba(248,113,113,0.2)' }}>
           <DocumentTextIcon className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
           <span style={{ color: '#fca5a5' }}>
-            The <span style={{ color: '#f87171', fontFamily: 'monospace' }}>ai-prompt-template</span> plugin doesn't appear to be active on this route.
-            Check the Details tab to verify the request body, and confirm the plugin is enabled on the exact Kong route you're calling.
+            Kong rejected the request body. Check the <strong>Details</strong> tab to verify what was sent.
+            Common causes: wrong template name, missing variable values, or the{' '}
+            <span style={{ fontFamily: 'monospace' }}>ai-prompt-template</span> plugin not enabled on this specific route.
           </span>
         </div>
       )}
